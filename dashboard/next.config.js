@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: process.env.NODE_ENV === 'production', // Disable in development to prevent double renders
   images: {
     remotePatterns: [
       {

@@ -40,12 +40,22 @@ export async function GET(request, { params }) {
     }
 
     try {
-      const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
-        headers: {
-          'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Add timeout to Discord API call (10 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      let response;
+      try {
+        response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+          headers: {
+            'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -91,7 +101,7 @@ export async function GET(request, { params }) {
       });
     } catch (apiError) {
       console.error('Error fetching from Discord API:', apiError);
-      // Fallback on API error
+      // Fallback on API error (timeout, network error, etc.)
       const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
       return NextResponse.json({
         id: userId,
@@ -100,7 +110,7 @@ export async function GET(request, { params }) {
         avatar: null,
         avatarURL: `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`,
         displayName: 'Unknown User'
-      });
+      }, { status: 200 }); // Return 200 so frontend doesn't treat it as an error
     }
   } catch (error) {
     console.error('Error in Discord user API:', error);

@@ -43,8 +43,12 @@ const client = new Client({
   ]
 });
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
+// Connect to MongoDB with timeout settings
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000, // 5 second timeout instead of default 30s
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+})
 .then(() => {
   console.log('✅ Connected to MongoDB');
 })
