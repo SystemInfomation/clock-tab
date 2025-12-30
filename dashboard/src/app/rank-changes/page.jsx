@@ -76,17 +76,42 @@ export default function RankChangesPage() {
         const res = await fetch(`/api/discord/user/${userId}`)
         if (res.ok) {
           const data = await res.json()
+          // Always store the data, even if it's fallback "Unknown User" data
           return { userId, data }
+        } else {
+          // Even if response is not ok, try to parse error response
+          const errorData = await res.json().catch(() => null)
+          console.error(`Failed to fetch user ${userId}:`, res.status, errorData)
+          // Return fallback data
+          return {
+            userId,
+            data: {
+              id: userId,
+              username: 'Unknown User',
+              displayName: 'Unknown User',
+              avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(userId) >> 22) % 6}.png?size=256`
+            }
+          }
         }
       } catch (error) {
         console.error(`Error fetching user ${userId}:`, error)
+        // Return fallback data on error
+        return {
+          userId,
+          data: {
+            id: userId,
+            username: 'Unknown User',
+            displayName: 'Unknown User',
+            avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(userId) >> 22) % 6}.png?size=256`
+          }
+        }
       }
-      return { userId, data: null }
     })
 
     const results = await Promise.all(userInfoPromises)
     const userInfoMap = {}
     results.forEach(({ userId, data }) => {
+      // Always set the data, even if it's fallback
       if (data) {
         userInfoMap[userId] = data
       }
@@ -179,11 +204,15 @@ export default function RankChangesPage() {
                     {rankChanges.length > 0 ? (
                       rankChanges.map((change, index) => {
                         const userData = userInfo[change.userId] || {
+                          id: change.userId,
                           displayName: change.userId,
+                          username: change.userId,
                           avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.userId) >> 22) % 6}.png?size=256`
                         }
                         const staffData = userInfo[change.staffId] || {
+                          id: change.staffId,
                           displayName: change.staffId,
+                          username: change.staffId,
                           avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.staffId) >> 22) % 6}.png?size=256`
                         }
 
