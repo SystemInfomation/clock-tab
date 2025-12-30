@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { getDiscordAvatar } from '@/lib/discord'
+import Image from 'next/image'
 
 const typeColors = {
-  warning: 'bg-yellow-100 text-yellow-800',
-  mute: 'bg-blue-100 text-blue-800',
-  kick: 'bg-orange-100 text-orange-800',
-  ban: 'bg-red-100 text-red-800'
+  warning: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  mute: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  kick: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  ban: 'bg-red-500/20 text-red-400 border-red-500/30'
 }
 
 export default function UserPage() {
@@ -47,10 +49,13 @@ export default function UserPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-[#0a0a0a]">
         <Navbar />
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">Loading...</div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5865f2] mx-auto"></div>
+            <p className="mt-4 text-gray-400">Loading...</p>
+          </div>
         </div>
       </div>
     )
@@ -61,93 +66,111 @@ export default function UserPage() {
   const stats = userData?.stats || {}
   const infractions = userData?.infractions || []
   const rankChanges = userData?.rankChanges || []
+  const avatarUrl = getDiscordAvatar(userId)
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <Navbar />
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">User Profile</h1>
+      <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 animate-fade-in">
+        <div className="px-4 sm:px-0">
+          <div className="glass-card rounded-2xl border border-[#1f1f1f] p-8 mb-6">
+            <div className="flex items-center gap-6 mb-8">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-[#1f1f1f]">
+                <Image
+                  src={avatarUrl}
+                  alt={userId}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-white mb-2">User Profile</h1>
+                <p className="text-gray-400 text-lg">ID: {userId}</p>
+              </div>
+            </div>
 
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">User ID: {userId}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Total Points</p>
-                <p className="text-2xl font-bold">{stats.totalPoints || 0}</p>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="bg-[#111111] rounded-xl p-4 border border-[#1f1f1f]">
+                <p className="text-sm text-gray-400 mb-2">Total Points</p>
+                <p className="text-3xl font-bold text-white">{stats.totalPoints || 0}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Current Rank</p>
-                <p className="text-2xl font-bold">{stats.currentRank || 'N/A'}</p>
+              <div className="bg-[#111111] rounded-xl p-4 border border-[#1f1f1f]">
+                <p className="text-sm text-gray-400 mb-2">Current Rank</p>
+                <p className="text-2xl font-bold text-white">{stats.currentRank || 'N/A'}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Infractions</p>
-                <p className="text-2xl font-bold">{stats.totalInfractions || 0}</p>
+              <div className="bg-[#111111] rounded-xl p-4 border border-[#1f1f1f]">
+                <p className="text-sm text-gray-400 mb-2">Total Infractions</p>
+                <p className="text-3xl font-bold text-white">{stats.totalInfractions || 0}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Last Action</p>
-                <p className="text-sm font-medium">
+              <div className="bg-[#111111] rounded-xl p-4 border border-[#1f1f1f]">
+                <p className="text-sm text-gray-400 mb-2">Last Action</p>
+                <p className="text-sm font-medium text-gray-300">
                   {stats.lastActionDate ? new Date(stats.lastActionDate).toLocaleDateString() : 'N/A'}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Warnings</p>
-                <p className="text-lg font-semibold">{stats.warnings || 0}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-[#111111] rounded-lg p-3 border border-[#1f1f1f]">
+                <p className="text-xs text-gray-400 mb-1">Warnings</p>
+                <p className="text-xl font-semibold text-white">{stats.warnings || 0}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Mutes</p>
-                <p className="text-lg font-semibold">{stats.mutes || 0}</p>
+              <div className="bg-[#111111] rounded-lg p-3 border border-[#1f1f1f]">
+                <p className="text-xs text-gray-400 mb-1">Mutes</p>
+                <p className="text-xl font-semibold text-white">{stats.mutes || 0}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Kicks</p>
-                <p className="text-lg font-semibold">{stats.kicks || 0}</p>
+              <div className="bg-[#111111] rounded-lg p-3 border border-[#1f1f1f]">
+                <p className="text-xs text-gray-400 mb-1">Kicks</p>
+                <p className="text-xl font-semibold text-white">{stats.kicks || 0}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Bans</p>
-                <p className="text-lg font-semibold">{stats.bans || 0}</p>
+              <div className="bg-[#111111] rounded-lg p-3 border border-[#1f1f1f]">
+                <p className="text-xs text-gray-400 mb-1">Bans</p>
+                <p className="text-xl font-semibold text-white">{stats.bans || 0}</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Infraction History</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="glass-card rounded-2xl border border-[#1f1f1f]">
+              <div className="px-6 py-5 border-b border-[#1f1f1f]">
+                <h3 className="text-lg font-semibold text-white">Infraction History</h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4 max-h-96 overflow-y-auto">
                   {infractions.length > 0 ? (
                     infractions.map((infraction) => (
-                      <div key={infraction._id} className="border-b pb-3 last:border-0">
-                        <div className="flex justify-between items-center">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${typeColors[infraction.type] || 'bg-gray-100 text-gray-800'}`}>
+                      <div key={infraction._id} className="border-b border-[#1f1f1f] pb-4 last:border-0 last:pb-0">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${typeColors[infraction.type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
                             {infraction.type.toUpperCase()}
                           </span>
                           <span className="text-xs text-gray-500">
                             {new Date(infraction.timestamp).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{infraction.reason}</p>
+                        <p className="text-sm text-gray-300 mt-2">{infraction.reason}</p>
                         <p className="text-xs text-gray-500 mt-1">Points: {infraction.points}</p>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500 text-sm">No infractions</p>
+                    <p className="text-gray-500 text-sm text-center py-8">No infractions</p>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Rank Change History</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="glass-card rounded-2xl border border-[#1f1f1f]">
+              <div className="px-6 py-5 border-b border-[#1f1f1f]">
+                <h3 className="text-lg font-semibold text-white">Rank Change History</h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4 max-h-96 overflow-y-auto">
                   {rankChanges.length > 0 ? (
                     rankChanges.map((change) => (
-                      <div key={change._id} className="border-b pb-3 last:border-0">
-                        <div className="flex justify-between items-center">
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                      <div key={change._id} className="border-b border-[#1f1f1f] pb-4 last:border-0 last:pb-0">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
                             {change.newRank}
                           </span>
                           <span className="text-xs text-gray-500">
@@ -159,11 +182,11 @@ export default function UserPage() {
                             Previous: {change.previousRank}
                           </p>
                         )}
-                        <p className="text-sm text-gray-600 mt-1">{change.reason}</p>
+                        <p className="text-sm text-gray-300 mt-2">{change.reason}</p>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500 text-sm">No rank changes</p>
+                    <p className="text-gray-500 text-sm text-center py-8">No rank changes</p>
                   )}
                 </div>
               </div>
@@ -174,4 +197,3 @@ export default function UserPage() {
     </div>
   )
 }
-

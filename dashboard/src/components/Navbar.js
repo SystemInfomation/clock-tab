@@ -2,29 +2,32 @@
 
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
+import { getDiscordAvatar } from '@/lib/discord'
+import Image from 'next/image'
 
 export default function Navbar() {
   const { data: session } = useSession()
+  const userAvatar = session?.user?.image || (session?.user?.id ? getDiscordAvatar(session.user.id) : null)
 
   return (
-    <nav className="bg-white border-b border-gray-200 shadow-sm">
+    <nav className="bg-[#111111] border-b border-[#1f1f1f] backdrop-blur-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <Link href="/" className="text-xl font-bold gradient-text hover:opacity-80 transition-opacity">
               Moderation Dashboard
             </Link>
             <div className="ml-10 flex items-baseline space-x-1">
-              <Link href="/" className="text-gray-700 hover:bg-gray-100 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+              <Link href="/" className="text-gray-300 hover:bg-[#1a1a1a] hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-all">
                 Home
               </Link>
-              <Link href="/infractions" className="text-gray-700 hover:bg-gray-100 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+              <Link href="/infractions" className="text-gray-300 hover:bg-[#1a1a1a] hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-all">
                 Infractions
               </Link>
-              <Link href="/rank-changes" className="text-gray-700 hover:bg-gray-100 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+              <Link href="/rank-changes" className="text-gray-300 hover:bg-[#1a1a1a] hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-all">
                 Rank Changes
               </Link>
-              <Link href="/analytics" className="text-gray-700 hover:bg-gray-100 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+              <Link href="/analytics" className="text-gray-300 hover:bg-[#1a1a1a] hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-all">
                 Analytics
               </Link>
             </div>
@@ -32,15 +35,23 @@ export default function Navbar() {
           <div className="flex items-center">
             {session && (
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {session.user.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
+                <div className="flex items-center space-x-3">
+                  {userAvatar && (
+                    <div className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-[#5865f2] ring-offset-2 ring-offset-[#111111]">
+                      <Image
+                        src={userAvatar}
+                        alt={session.user.name || 'User'}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-gray-200">{session.user.name}</span>
                 </div>
                 <button
                   onClick={() => signOut()}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-[#1a1a1a] hover:bg-[#2a2a2a] text-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition-all border border-[#1f1f1f] hover:border-[#2f2f2f]"
                 >
                   Sign Out
                 </button>

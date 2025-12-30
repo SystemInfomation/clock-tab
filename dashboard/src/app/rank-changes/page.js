@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { getDiscordAvatar } from '@/lib/discord'
+import Image from 'next/image'
+import Link from 'next/link'
 
 export default function RankChangesPage() {
   const { data: session, status } = useSession()
@@ -51,10 +54,13 @@ export default function RankChangesPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-[#0a0a0a]">
         <Navbar />
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">Loading...</div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5865f2] mx-auto"></div>
+            <p className="mt-4 text-gray-400">Loading...</p>
+          </div>
         </div>
       </div>
     )
@@ -63,98 +69,134 @@ export default function RankChangesPage() {
   if (!session) return null
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <Navbar />
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Rank Changes</h1>
+      <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 animate-fade-in">
+        <div className="px-4 sm:px-0">
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold text-white mb-3">Rank Changes</h1>
+            <p className="text-gray-400 text-lg">Track all promotions, demotions, and terminations</p>
+          </div>
 
-          <div className="bg-white shadow rounded-lg mb-6 p-4">
+          <div className="glass-card rounded-2xl border border-[#1f1f1f] mb-6 p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">User ID</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">User ID</label>
                 <input
                   type="text"
                   value={filters.userId}
                   onChange={(e) => setFilters({ ...filters, userId: e.target.value, page: 1 })}
                   placeholder="Enter user ID"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="w-full bg-[#111111] border border-[#1f1f1f] rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-[#5865f2] focus:border-[#5865f2] transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rank</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Rank</label>
                 <input
                   type="text"
                   value={filters.rank}
                   onChange={(e) => setFilters({ ...filters, rank: e.target.value, page: 1 })}
                   placeholder="Enter rank"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="w-full bg-[#111111] border border-[#1f1f1f] rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-[#5865f2] focus:border-[#5865f2] transition-all"
                 />
               </div>
             </div>
           </div>
 
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Previous Rank</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New Rank</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {rankChanges.length > 0 ? (
-                  rankChanges.map((change) => (
-                    <tr key={change._id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <a href={`/users/${change.userId}`} className="text-indigo-600 hover:text-indigo-900">
-                          {change.userId}
-                        </a>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{change.previousRank || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          {change.newRank}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{change.reason}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{change.staffId}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(change.timestamp).toLocaleString()}
+          <div className="glass-card rounded-2xl border border-[#1f1f1f] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-[#1f1f1f]">
+                <thead className="bg-[#111111]">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Previous Rank</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">New Rank</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Reason</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Staff</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-[#111111] divide-y divide-[#1f1f1f]">
+                  {rankChanges.length > 0 ? (
+                    rankChanges.map((change) => {
+                      const avatarUrl = getDiscordAvatar(change.userId)
+                      const staffAvatarUrl = getDiscordAvatar(change.staffId)
+                      return (
+                        <tr key={change._id} className="hover:bg-[#1a1a1a] transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Link href={`/users/${change.userId}`} className="flex items-center gap-3 group">
+                              <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-[#1f1f1f] group-hover:ring-[#5865f2] transition-all">
+                                <Image
+                                  src={avatarUrl}
+                                  alt={change.userId}
+                                  fill
+                                  className="object-cover"
+                                  unoptimized
+                                />
+                              </div>
+                              <span className="text-sm font-medium text-white group-hover:text-[#5865f2] transition-colors">
+                                {change.userId}
+                              </span>
+                            </Link>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{change.previousRank || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-3 py-1.5 inline-flex text-xs font-semibold rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
+                              {change.newRank}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate">{change.reason}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-[#1f1f1f]">
+                                <Image
+                                  src={staffAvatarUrl}
+                                  alt={change.staffId}
+                                  fill
+                                  className="object-cover"
+                                  unoptimized
+                                />
+                              </div>
+                              <span className="text-sm text-gray-400">{change.staffId}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                            {new Date(change.timestamp).toLocaleString()}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center">
+                        <svg className="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        <p className="mt-4 text-sm text-gray-500">No rank changes found</p>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
-                      No rank changes found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {pagination && pagination.pages > 1 && (
-            <div className="mt-4 flex justify-center space-x-2">
+            <div className="mt-6 flex items-center justify-center space-x-2">
               <button
                 onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
                 disabled={filters.page === 1}
-                className="px-4 py-2 border rounded-md disabled:opacity-50"
+                className="px-4 py-2 bg-[#111111] border border-[#1f1f1f] rounded-lg text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Previous
               </button>
-              <span className="px-4 py-2">
+              <span className="px-4 py-2 text-sm font-medium text-gray-300">
                 Page {filters.page} of {pagination.pages}
               </span>
               <button
                 onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
                 disabled={filters.page >= pagination.pages}
-                className="px-4 py-2 border rounded-md disabled:opacity-50"
+                className="px-4 py-2 bg-[#111111] border border-[#1f1f1f] rounded-lg text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Next
               </button>
@@ -165,4 +207,3 @@ export default function RankChangesPage() {
     </div>
   )
 }
-
