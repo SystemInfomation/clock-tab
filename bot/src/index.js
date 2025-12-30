@@ -13,8 +13,14 @@ if (process.env.PORT) {
   const PORT = parseInt(process.env.PORT || '8080', 10);
   healthServer = createServer((req, res) => {
     if (req.url === '/health' || req.url === '/') {
+      const status = botReady ? 'ready' : 'initializing';
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'healthy', service: 'discord-bot' }));
+      res.end(JSON.stringify({ 
+        status: 'healthy', 
+        service: 'discord-bot',
+        botStatus: status,
+        mongoConnected: mongoose.connection.readyState === 1
+      }));
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
@@ -27,10 +33,31 @@ if (process.env.PORT) {
   
   // Graceful shutdown
   process.on('SIGTERM', () => {
-    console.log('SIGTERM received: closing health server');
+    console.log('SIGTERM received: shutting down gracefully...');
     if (healthServer) {
       healthServer.close(() => console.log('Health server closed'));
     }
+    if (client && client.isReady()) {
+      client.destroy();
+      console.log('Discord client destroyed');
+    }
+    mongoose.connection.close();
+    console.log('MongoDB connection closed');
+    process.exit(0);
+  });
+  
+  process.on('SIGINT', () => {
+    console.log('SIGINT received: shutting down gracefully...');
+    if (healthServer) {
+      healthServer.close(() => console.log('Health server closed'));
+    }
+    if (client && client.isReady()) {
+      client.destroy();
+      console.log('Discord client destroyed');
+    }
+    mongoose.connection.close();
+    console.log('MongoDB connection closed');
+    process.exit(0);
   });
 }
 
@@ -61,10 +88,15 @@ mongoose.connect(process.env.MONGODB_URI, {
 const wsPort = parseInt(process.env.WS_PORT || '3001');
 initializeWebSocketServer(wsPort);
 
+// Track if bot is ready
+let botReady = false;
+
 // Bot ready event
 client.once('clientReady', () => {
+  botReady = true;
   console.log(`✅ Bot is ready! Logged in as ${client.user.tag}`);
   console.log(`📊 Monitoring staff channel: ${process.env.STAFF_CHANNEL_ID}`);
+  console.log(`🆔 Bot User ID: ${client.user.id}`);
 });
 
 // Message create event
@@ -81,10 +113,29 @@ client.on('error', (error) => {
   console.error('Discord client error:', error);
 });
 
+client.on('warn', (warning) => {
+  console.warn('Discord client warning:', warning);
+});
+
 process.on('unhandledRejection', (error) => {
   console.error('Unhandled promise rejection:', error);
+  console.error('Stack:', error.stack);
 });
 
 // Login to Discord
-client.login(process.env.DISCORD_TOKEN);
+if (!process.env.DISCORD_TOKEN) {
+  console.error('❌ DISCORD_TOKEN environment variable is not set!');
+  process.exit(1);
+}
+
+console.log('🔐 Attempting to login to Discord...');
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => {
+    console.log('✅ Discord login successful, waiting for ready event...');
+  })
+  .catch((error) => {
+    console.error('❌ Failed to login to Discord:', error);
+    console.error('Error details:', error.message);
+    process.exit(1);
+  });
 
