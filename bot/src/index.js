@@ -58,7 +58,7 @@ const wsPort = parseInt(process.env.WS_PORT || '3001');
 initializeWebSocketServer(wsPort);
 
 // Bot ready event
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`✅ Bot is ready! Logged in as ${client.user.tag}`);
   console.log(`📊 Monitoring staff channel: ${process.env.STAFF_CHANNEL_ID}`);
 });

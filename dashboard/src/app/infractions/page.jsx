@@ -213,11 +213,11 @@ export default function InfractionsPage() {
                       infractions.map((infraction, index) => {
                         const userData = userInfo[infraction.userId] || {
                           displayName: infraction.userId,
-                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(infraction.userId) >> 22 % 6}.png`
+                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(infraction.userId) >> 22) % 6}.png?size=256`
                         }
                         const staffData = userInfo[infraction.staffId] || {
                           displayName: infraction.staffId,
-                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(infraction.staffId) >> 22 % 6}.png`
+                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(infraction.staffId) >> 22) % 6}.png?size=256`
                         }
                         const TypeIcon = typeIcons[infraction.type] || FileWarning
 

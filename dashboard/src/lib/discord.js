@@ -7,8 +7,9 @@
  */
 export function getDiscordAvatar(userId, avatarHash = null, size = 256) {
   if (avatarHash && avatarHash !== null) {
-    // User has custom avatar
-    return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.webp?size=${size}`
+    // User has custom avatar - handle animated avatars (start with 'a_')
+    const extension = avatarHash.startsWith('a_') ? 'gif' : 'webp';
+    return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${extension}?size=${size}`
   }
   
   // Default Discord avatar based on user ID

@@ -15,7 +15,7 @@ export async function getDiscordUser(userId) {
     return {
       id: userId || 'unknown',
       username: 'Unknown User',
-      avatarURL: 'https://cdn.discordapp.com/embed/avatars/0.png',
+      avatarURL: 'https://cdn.discordapp.com/embed/avatars/0.png?size=256',
       displayName: 'Unknown User'
     };
   }
@@ -44,10 +44,11 @@ export async function getDiscordUser(userId) {
   } catch (error) {
     console.error(`Error fetching user ${userId}:`, error);
     // Return fallback
+    const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
     return {
       id: userId,
       username: 'Unknown User',
-      avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(userId) >> 22 % 6}.png`,
+      avatarURL: `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`,
       displayName: 'Unknown User'
     };
   }

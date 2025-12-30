@@ -46,6 +46,32 @@ async function handleRankChangeMessage(message) {
   }
 
   try {
+    // Check for duplicate rank change by message ID (most reliable)
+    const existingByMessageId = await RankChange.findOne({
+      messageId: message.id
+    }).catch(() => null);
+
+    if (existingByMessageId) {
+      console.log('Duplicate rank change detected (same message ID), skipping...');
+      await message.react('⚠️');
+      return;
+    }
+
+    // Also check for duplicate rank change (same user, rank, and staff within last 5 seconds) as fallback
+    const fiveSecondsAgo = new Date(Date.now() - 5000);
+    const existingRankChange = await RankChange.findOne({
+      userId: parsed.userId,
+      newRank: parsed.newRank,
+      staffId: parsed.staffId,
+      timestamp: { $gte: fiveSecondsAgo }
+    }).catch(() => null);
+
+    if (existingRankChange) {
+      console.log('Duplicate rank change detected (time-based check), skipping...');
+      await message.react('⚠️');
+      return;
+    }
+
     // Get previous rank
     const user = await User.findOne({ userId: parsed.userId }).catch((error) => {
       console.error('Error finding user:', error);
@@ -56,7 +82,8 @@ async function handleRankChangeMessage(message) {
     // Create rank change record
     const rankChange = new RankChange({
       ...parsed,
-      previousRank
+      previousRank,
+      messageId: message.id
     });
     
     try {

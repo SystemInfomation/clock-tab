@@ -28,12 +28,13 @@ export async function GET(request, { params }) {
 
     if (!DISCORD_BOT_TOKEN) {
       // Fallback: return basic info with default avatar
+      const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
       return NextResponse.json({
         id: userId,
         username: 'Unknown User',
         discriminator: '0000',
         avatar: null,
-        avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(userId) >> 22 % 6}.png`,
+        avatarURL: `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`,
         displayName: 'Unknown User'
       });
     }
@@ -49,12 +50,13 @@ export async function GET(request, { params }) {
       if (!response.ok) {
         if (response.status === 404) {
           // User not found - return default
+          const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
           return NextResponse.json({
             id: userId,
             username: 'Unknown User',
             discriminator: '0000',
             avatar: null,
-            avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(userId) >> 22 % 6}.png`,
+            avatarURL: `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`,
             displayName: 'Unknown User'
           });
         }
@@ -63,12 +65,16 @@ export async function GET(request, { params }) {
 
       const user = await response.json();
 
-      // Build avatar URL
+      // Build avatar URL - handle animated avatars (start with 'a_') and static avatars
       let avatarURL;
       if (user.avatar) {
-        avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.webp?size=256`;
+        // Check if avatar is animated (starts with 'a_')
+        const extension = user.avatar.startsWith('a_') ? 'gif' : 'webp';
+        avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${extension}?size=256`;
       } else {
-        avatarURL = `https://cdn.discordapp.com/embed/avatars/${parseInt(user.id) >> 22 % 6}.png`;
+        // Default Discord avatar based on user ID
+        const defaultAvatarIndex = (parseInt(user.id) >> 22) % 6;
+        avatarURL = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`;
       }
 
       // Modern Discord uses display_name if available, otherwise username
@@ -86,12 +92,13 @@ export async function GET(request, { params }) {
     } catch (apiError) {
       console.error('Error fetching from Discord API:', apiError);
       // Fallback on API error
+      const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
       return NextResponse.json({
         id: userId,
         username: 'Unknown User',
         discriminator: '0000',
         avatar: null,
-        avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(userId) >> 22 % 6}.png`,
+        avatarURL: `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`,
         displayName: 'Unknown User'
       });
     }

@@ -161,11 +161,11 @@ export default function RankChangesPage() {
                     rankChanges.map((change) => {
                       const userData = userInfo[change.userId] || {
                         displayName: change.userId,
-                        avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(change.userId) >> 22 % 6}.png`
+                        avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.userId) >> 22) % 6}.png?size=256`
                       }
                       const staffData = userInfo[change.staffId] || {
                         displayName: change.staffId,
-                        avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(change.staffId) >> 22 % 6}.png`
+                        avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.staffId) >> 22) % 6}.png?size=256`
                       }
 
                       return (

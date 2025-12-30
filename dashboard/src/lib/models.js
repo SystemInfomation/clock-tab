@@ -18,7 +18,8 @@ const rankChangeSchema = new mongoose.Schema({
   previousRank: { type: String, default: null },
   reason: { type: String, required: true },
   staffId: { type: String, required: true, index: true },
-  timestamp: { type: Date, default: Date.now, index: true }
+  timestamp: { type: Date, default: Date.now, index: true },
+  messageId: { type: String, unique: true, sparse: true, index: true }
 }, { timestamps: true });
 
 const userSchema = new mongoose.Schema({

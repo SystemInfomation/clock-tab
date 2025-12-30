@@ -180,11 +180,11 @@ export default function RankChangesPage() {
                       rankChanges.map((change, index) => {
                         const userData = userInfo[change.userId] || {
                           displayName: change.userId,
-                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(change.userId) >> 22 % 6}.png`
+                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.userId) >> 22) % 6}.png?size=256`
                         }
                         const staffData = userInfo[change.staffId] || {
                           displayName: change.staffId,
-                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(change.staffId) >> 22 % 6}.png`
+                          avatarURL: `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.staffId) >> 22) % 6}.png?size=256`
                         }
 
                         return (
@@ -199,7 +199,7 @@ export default function RankChangesPage() {
                               <Link href={`/users/${change.userId}`} className="flex items-center gap-3 group">
                                 <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-border/50 group-hover:ring-accent/50 transition-all">
                                   <Image
-                                    src={userData.avatarURL}
+                                    src={userData.avatarURL || `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.userId) >> 22) % 6}.png?size=256`}
                                     alt={userData.displayName}
                                     fill
                                     className="object-cover"
@@ -230,7 +230,7 @@ export default function RankChangesPage() {
                               <div className="flex items-center gap-2">
                                 <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-border/50">
                                   <Image
-                                    src={staffData.avatarURL}
+                                    src={staffData.avatarURL || `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.staffId) >> 22) % 6}.png?size=256`}
                                     alt={staffData.displayName}
                                     fill
                                     className="object-cover"
