@@ -6,6 +6,34 @@ import { initializeWebSocketServer } from './services/websocketServer.js';
 
 dotenv.config();
 
+// Start health check server for Cloud Run (only when PORT is set)
+let healthServer = null;
+if (process.env.PORT) {
+  const { createServer } = await import('http');
+  const PORT = parseInt(process.env.PORT || '8080', 10);
+  healthServer = createServer((req, res) => {
+    if (req.url === '/health' || req.url === '/') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'healthy', service: 'discord-bot' }));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found' }));
+    }
+  });
+  
+  healthServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Health check server listening on port ${PORT}`);
+  });
+  
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received: closing health server');
+    if (healthServer) {
+      healthServer.close(() => console.log('Health server closed'));
+    }
+  });
+}
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,

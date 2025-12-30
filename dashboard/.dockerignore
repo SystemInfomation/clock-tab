@@ -1,0 +1,45 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Git
+.git
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts (will be built in Docker)
+.next
+
+# Documentation
+*.md
+!README.md
+
+# Deployment files
+../deploy/
+../*.sh
+
+# Test files
+**/*.test.js
+**/*.spec.js
+__tests__
+coverage
+
+# Development files
+system-check.js
+test-port.js
+run-system-check.sh
+
