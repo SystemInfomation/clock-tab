@@ -8,9 +8,10 @@ export function Card({ children, className = '', hover = true, ...props }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      whileHover={hover ? { y: -2 } : {}}
       className={`
         glass-card rounded-2xl p-6
-        ${hover ? 'card-glow hover:card-glow-hover hover:-translate-y-0.5' : 'card-glow'}
+        ${hover ? 'card-glow hover:card-glow-hover' : 'card-glow'}
         transition-all duration-300
         ${className}
       `}

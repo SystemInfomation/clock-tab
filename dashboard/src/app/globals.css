@@ -63,6 +63,22 @@
   .gradient-text {
     @apply bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent;
   }
+  
+  .hover-lift {
+    @apply transition-transform duration-300;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+  
+  .glow-on-hover {
+    @apply transition-all duration-300;
+  }
+  
+  .glow-on-hover:hover {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+  }
 }
 
 /* Custom scrollbar */
