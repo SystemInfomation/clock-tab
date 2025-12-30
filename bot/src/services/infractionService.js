@@ -53,12 +53,16 @@ export async function createInfraction(data) {
   }
   
   // Update user stats using findOneAndUpdate for better performance (atomic operation)
+  // Note: $inc handles totalPoints on both insert and update, so don't include it in $setOnInsert
   const user = await User.findOneAndUpdate(
     { userId },
     {
       $inc: { totalPoints: points },
       $set: { lastActionDate: new Date() },
-      $setOnInsert: { totalPoints: 0 } // Set default when creating new document
+      $setOnInsert: { 
+        userId: userId,
+        currentRank: null
+      }
     },
     { 
       upsert: true, 
