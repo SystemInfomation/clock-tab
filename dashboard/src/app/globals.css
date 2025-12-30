@@ -16,7 +16,7 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border-color);
   }
   body {
     @apply bg-background text-foreground;
