@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { getDiscordAvatar } from '@/lib/discord'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -12,6 +11,7 @@ export default function RankChangesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [rankChanges, setRankChanges] = useState([])
+  const [userInfo, setUserInfo] = useState({}) // Map of userId -> user info
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
     userId: '',
@@ -29,6 +29,13 @@ export default function RankChangesPage() {
   useEffect(() => {
     fetchRankChanges()
   }, [session, filters])
+
+  useEffect(() => {
+    // Fetch user info for all unique user IDs
+    if (rankChanges.length > 0) {
+      fetchUserInfo()
+    }
+  }, [rankChanges])
 
   async function fetchRankChanges() {
     if (!session) return
@@ -50,6 +57,39 @@ export default function RankChangesPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function fetchUserInfo() {
+    // Get all unique user IDs (users and staff)
+    const userIds = new Set()
+    rankChanges.forEach(change => {
+      if (change.userId) userIds.add(change.userId)
+      if (change.staffId) userIds.add(change.staffId)
+    })
+
+    // Fetch user info for all users in parallel
+    const userInfoPromises = Array.from(userIds).map(async (userId) => {
+      try {
+        const res = await fetch(`/api/discord/user/${userId}`)
+        if (res.ok) {
+          const data = await res.json()
+          return { userId, data }
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${userId}:`, error)
+      }
+      return { userId, data: null }
+    })
+
+    const results = await Promise.all(userInfoPromises)
+    const userInfoMap = {}
+    results.forEach(({ userId, data }) => {
+      if (data) {
+        userInfoMap[userId] = data
+      }
+    })
+
+    setUserInfo(userInfoMap)
   }
 
   if (status === 'loading' || loading) {
@@ -119,24 +159,34 @@ export default function RankChangesPage() {
                 <tbody className="bg-[#111111] divide-y divide-[#1f1f1f]">
                   {rankChanges.length > 0 ? (
                     rankChanges.map((change) => {
-                      const avatarUrl = getDiscordAvatar(change.userId)
-                      const staffAvatarUrl = getDiscordAvatar(change.staffId)
+                      const userData = userInfo[change.userId] || {
+                        displayName: change.userId,
+                        avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(change.userId) >> 22 % 6}.png`
+                      }
+                      const staffData = userInfo[change.staffId] || {
+                        displayName: change.staffId,
+                        avatarURL: `https://cdn.discordapp.com/embed/avatars/${parseInt(change.staffId) >> 22 % 6}.png`
+                      }
+
                       return (
                         <tr key={change._id} className="hover:bg-[#1a1a1a] transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Link href={`/users/${change.userId}`} className="flex items-center gap-3 group">
                               <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-[#1f1f1f] group-hover:ring-[#5865f2] transition-all">
                                 <Image
-                                  src={avatarUrl}
-                                  alt={change.userId}
+                                  src={userData.avatarURL}
+                                  alt={userData.displayName}
                                   fill
                                   className="object-cover"
                                   unoptimized
                                 />
                               </div>
-                              <span className="text-sm font-medium text-white group-hover:text-[#5865f2] transition-colors">
-                                {change.userId}
-                              </span>
+                              <div>
+                                <div className="text-sm font-medium text-white group-hover:text-[#5865f2] transition-colors">
+                                  {userData.displayName || change.userId}
+                                </div>
+                                <div className="text-xs text-gray-500">{change.userId}</div>
+                              </div>
                             </Link>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{change.previousRank || 'N/A'}</td>
@@ -150,14 +200,17 @@ export default function RankChangesPage() {
                             <div className="flex items-center gap-2">
                               <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-[#1f1f1f]">
                                 <Image
-                                  src={staffAvatarUrl}
-                                  alt={change.staffId}
+                                  src={staffData.avatarURL}
+                                  alt={staffData.displayName}
                                   fill
                                   className="object-cover"
                                   unoptimized
                                 />
                               </div>
-                              <span className="text-sm text-gray-400">{change.staffId}</span>
+                              <div>
+                                <div className="text-sm text-gray-300">{staffData.displayName || change.staffId}</div>
+                                <div className="text-xs text-gray-500">{change.staffId}</div>
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">

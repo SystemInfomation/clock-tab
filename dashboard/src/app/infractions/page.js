@@ -19,6 +19,7 @@ export default function InfractionsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [infractions, setInfractions] = useState([])
+  const [userInfo, setUserInfo] = useState({}) // Map of userId -> user info
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
     type: '',
@@ -36,6 +37,13 @@ export default function InfractionsPage() {
   useEffect(() => {
     fetchInfractions()
   }, [session, filters])
+
+  useEffect(() => {
+    // Fetch user info for all unique user IDs
+    if (infractions.length > 0) {
+      fetchUserInfo()
+    }
+  }, [infractions])
 
   async function fetchInfractions() {
     if (!session) return
@@ -57,6 +65,39 @@ export default function InfractionsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function fetchUserInfo() {
+    // Get all unique user IDs (users and staff)
+    const userIds = new Set()
+    infractions.forEach(inf => {
+      if (inf.userId) userIds.add(inf.userId)
+      if (inf.staffId) userIds.add(inf.staffId)
+    })
+
+    // Fetch user info for all users in parallel
+    const userInfoPromises = Array.from(userIds).map(async (userId) => {
+      try {
+        const res = await fetch(`/api/discord/user/${userId}`)
+        if (res.ok) {
+          const data = await res.json()
+          return { userId, data }
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${userId}:`, error)
+      }
+      return { userId, data: null }
+    })
+
+    const results = await Promise.all(userInfoPromises)
+    const userInfoMap = {}
+    results.forEach(({ userId, data }) => {
+      if (data) {
+        userInfoMap[userId] = data
+      }
+    })
+
+    setUserInfo(userInfoMap)
   }
 
   async function handleDelete(id) {
@@ -145,24 +186,34 @@ export default function InfractionsPage() {
                 <tbody className="bg-[#111111] divide-y divide-[#1f1f1f]">
                   {infractions.length > 0 ? (
                     infractions.map((infraction) => {
-                      const avatarUrl = getDiscordAvatar(infraction.userId)
-                      const staffAvatarUrl = getDiscordAvatar(infraction.staffId)
+                      const userData = userInfo[infraction.userId] || {
+                        displayName: infraction.userId,
+                        avatarURL: getDiscordAvatar(infraction.userId)
+                      }
+                      const staffData = userInfo[infraction.staffId] || {
+                        displayName: infraction.staffId,
+                        avatarURL: getDiscordAvatar(infraction.staffId)
+                      }
+
                       return (
                         <tr key={infraction._id} className="hover:bg-[#1a1a1a] transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Link href={`/users/${infraction.userId}`} className="flex items-center gap-3 group">
                               <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-[#1f1f1f] group-hover:ring-[#5865f2] transition-all">
                                 <Image
-                                  src={avatarUrl}
-                                  alt={infraction.userId}
+                                  src={userData.avatarURL}
+                                  alt={userData.displayName}
                                   fill
                                   className="object-cover"
                                   unoptimized
                                 />
                               </div>
-                              <span className="text-sm font-medium text-white group-hover:text-[#5865f2] transition-colors">
-                                {infraction.userId}
-                              </span>
+                              <div>
+                                <div className="text-sm font-medium text-white group-hover:text-[#5865f2] transition-colors">
+                                  {userData.displayName || infraction.userId}
+                                </div>
+                                <div className="text-xs text-gray-500">{infraction.userId}</div>
+                              </div>
                             </Link>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -175,14 +226,17 @@ export default function InfractionsPage() {
                             <div className="flex items-center gap-2">
                               <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-[#1f1f1f]">
                                 <Image
-                                  src={staffAvatarUrl}
-                                  alt={infraction.staffId}
+                                  src={staffData.avatarURL}
+                                  alt={staffData.displayName}
                                   fill
                                   className="object-cover"
                                   unoptimized
                                 />
                               </div>
-                              <span className="text-sm text-gray-400">{infraction.staffId}</span>
+                              <div>
+                                <div className="text-sm text-gray-300">{staffData.displayName || infraction.staffId}</div>
+                                <div className="text-xs text-gray-500">{infraction.staffId}</div>
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">

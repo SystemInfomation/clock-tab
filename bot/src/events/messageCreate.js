@@ -133,7 +133,13 @@ async function handlePrefixCommand(message) {
     handleClear
   } = await import('../commands/moderation.js');
 
+  const { handleHelp } = await import('../commands/help.js');
+
   switch (command) {
+    case 'help':
+    case 'h':
+      await handleHelp(message, args.slice(1));
+      break;
     case 'mute':
       await handleMute(message, args.slice(1));
       break;
@@ -150,6 +156,7 @@ async function handlePrefixCommand(message) {
       await handleWarn(message, args.slice(1));
       break;
     case 'infractions':
+    case 'inf':
       await handleInfractions(message, args.slice(1));
       break;
     case 'clear':

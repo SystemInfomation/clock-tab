@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/mongodb';
 import { Infraction, RankChange } from '@/lib/models';
 
+// Force dynamic rendering since we use getServerSession (which uses headers)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -76,12 +79,18 @@ export async function GET(request) {
       timestamp: { $gte: startDate }
     });
 
+    // Calculate average per day
+    const daysDiff = Math.ceil((now - startDate) / (1000 * 60 * 60 * 24));
+    const averagePerDay = daysDiff > 0 ? infractions.length / daysDiff : 0;
+
     return NextResponse.json({
       infractionsByDate: Object.entries(infractionsByDate).map(([date, count]) => ({ date, count })),
       topStaff,
       topUsers,
       typeDistribution,
       rankChangesCount,
+      totalInfractions: infractions.length,
+      averagePerDay,
       period,
       startDate,
       endDate: now

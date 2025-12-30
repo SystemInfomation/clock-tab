@@ -12,6 +12,7 @@ export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [stats, setStats] = useState(null)
+  const [userInfo, setUserInfo] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -48,6 +49,48 @@ export default function Home() {
       fetchStats()
     }
   }, [session])
+
+  useEffect(() => {
+    // Fetch user info for all unique user IDs
+    if (stats) {
+      fetchUserInfo()
+    }
+  }, [stats])
+
+  async function fetchUserInfo() {
+    if (!stats) return
+
+    const userIds = new Set()
+    stats.recentInfractions?.forEach(inf => {
+      if (inf.userId) userIds.add(inf.userId)
+    })
+    stats.recentRankChanges?.forEach(change => {
+      if (change.userId) userIds.add(change.userId)
+    })
+
+    const userInfoPromises = Array.from(userIds).map(async (userId) => {
+      try {
+        const res = await fetch(`/api/discord/user/${userId}`)
+        if (res.ok) {
+          const data = await res.json()
+          return { userId, data }
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${userId}:`, error)
+      }
+      return { userId, data: null }
+    })
+
+    const results = await Promise.all(userInfoPromises)
+    const userInfoMap = {}
+    results.forEach(({ userId, data }) => {
+      if (data) {
+        userInfoMap[userId] = data
+      }
+    })
+
+    setUserInfo(userInfoMap)
+  }
 
   if (status === 'loading' || loading) {
     return (
@@ -120,14 +163,17 @@ export default function Home() {
                 <div className="space-y-4">
                   {stats?.recentInfractions?.length > 0 ? (
                     stats.recentInfractions.map((infraction) => {
-                      const avatarUrl = getDiscordAvatar(infraction.userId)
+                      const userData = userInfo[infraction.userId] || {
+                        displayName: infraction.userId,
+                        avatarURL: getDiscordAvatar(infraction.userId)
+                      }
                       return (
                         <div key={infraction._id} className="flex items-start gap-4 p-4 rounded-xl bg-[#111111] hover:bg-[#1a1a1a] transition-all border border-[#1f1f1f]">
                           <div className="flex-shrink-0">
                             <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-[#1f1f1f]">
                               <Image
-                                src={avatarUrl}
-                                alt={infraction.userId}
+                                src={userData.avatarURL}
+                                alt={userData.displayName}
                                 fill
                                 className="object-cover"
                                 unoptimized
@@ -148,6 +194,7 @@ export default function Home() {
                                 {new Date(infraction.timestamp).toLocaleDateString()}
                               </span>
                             </div>
+                            <p className="text-sm font-medium text-white mb-1">{userData.displayName}</p>
                             <p className="text-sm text-gray-300 truncate">{infraction.reason}</p>
                             <Link href={`/users/${infraction.userId}`} className="text-xs text-[#5865f2] hover:text-[#4752c4] mt-1 inline-block">
                               View user →
@@ -184,14 +231,17 @@ export default function Home() {
                 <div className="space-y-4">
                   {stats?.recentRankChanges?.length > 0 ? (
                     stats.recentRankChanges.map((change) => {
-                      const avatarUrl = getDiscordAvatar(change.userId)
+                      const userData = userInfo[change.userId] || {
+                        displayName: change.userId,
+                        avatarURL: getDiscordAvatar(change.userId)
+                      }
                       return (
                         <div key={change._id} className="flex items-start gap-4 p-4 rounded-xl bg-[#111111] hover:bg-[#1a1a1a] transition-all border border-[#1f1f1f]">
                           <div className="flex-shrink-0">
                             <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-[#1f1f1f]">
                               <Image
-                                src={avatarUrl}
-                                alt={change.userId}
+                                src={userData.avatarURL}
+                                alt={userData.displayName}
                                 fill
                                 className="object-cover"
                                 unoptimized
@@ -207,6 +257,7 @@ export default function Home() {
                                 {new Date(change.timestamp).toLocaleDateString()}
                               </span>
                             </div>
+                            <p className="text-sm font-medium text-white mb-1">{userData.displayName}</p>
                             <p className="text-sm text-gray-300 truncate">{change.reason}</p>
                             <Link href={`/users/${change.userId}`} className="text-xs text-[#5865f2] hover:text-[#4752c4] mt-1 inline-block">
                               View user →

@@ -20,6 +20,7 @@ export default function UserPage() {
   const params = useParams()
   const userId = params.userId
   const [userData, setUserData] = useState(null)
+  const [discordUser, setDiscordUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function UserPage() {
   useEffect(() => {
     if (session && userId) {
       fetchUserData()
+      fetchDiscordUser()
     }
   }, [session, userId])
 
@@ -44,6 +46,18 @@ export default function UserPage() {
       console.error('Error fetching user data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchDiscordUser() {
+    try {
+      const res = await fetch(`/api/discord/user/${userId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDiscordUser(data)
+      }
+    } catch (error) {
+      console.error('Error fetching Discord user:', error)
     }
   }
 
@@ -66,7 +80,8 @@ export default function UserPage() {
   const stats = userData?.stats || {}
   const infractions = userData?.infractions || []
   const rankChanges = userData?.rankChanges || []
-  const avatarUrl = getDiscordAvatar(userId)
+  const avatarUrl = discordUser?.avatarURL || getDiscordAvatar(userId)
+  const displayName = discordUser?.displayName || userId
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -78,15 +93,18 @@ export default function UserPage() {
               <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-[#1f1f1f]">
                 <Image
                   src={avatarUrl}
-                  alt={userId}
+                  alt={displayName}
                   fill
                   className="object-cover"
                   unoptimized
                 />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2">User Profile</h1>
+                <h1 className="text-4xl font-bold text-white mb-2">{displayName}</h1>
                 <p className="text-gray-400 text-lg">ID: {userId}</p>
+                {discordUser?.username && (
+                  <p className="text-gray-500 text-sm">@{discordUser.username}</p>
+                )}
               </div>
             </div>
 
