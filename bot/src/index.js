@@ -79,10 +79,13 @@ process.on('SIGINT', () => {
 });
 
 // Connect to MongoDB (required for bot functionality)
+// Increased timeouts for Cloud Run network latency
 mongoose.connect(process.env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 30000, // Increased to 30s for Cloud Run network latency
   socketTimeoutMS: 45000,
-  connectTimeoutMS: 10000,
+  connectTimeoutMS: 30000,
+  maxPoolSize: 10,
+  minPoolSize: 1,
 })
 .then(() => {
   console.log('✅ Connected to MongoDB');
@@ -92,6 +95,19 @@ mongoose.connect(process.env.MONGODB_URI, {
   console.error('❌ Bot requires MongoDB to function');
   // Keep health server running for Cloud Run, but bot won't work
   // Cloud Run will see health checks succeed, but bot functionality will be limited
+});
+
+// Connection event handlers
+mongoose.connection.on('connected', () => {
+  console.log('✅ MongoDB connection ready');
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️  MongoDB disconnected');
+});
+
+mongoose.connection.on('error', (error) => {
+  console.error('❌ MongoDB connection error:', error);
 });
 
 // Bot ready event
@@ -104,6 +120,12 @@ client.once('ready', () => {
 
 // Message create event
 client.on('messageCreate', async (message) => {
+  // Skip message processing if MongoDB is not connected
+  if (mongoose.connection.readyState !== 1) {
+    console.warn('⚠️  Skipping message processing - MongoDB not connected');
+    return;
+  }
+  
   try {
     await handleMessage(message);
   } catch (error) {
