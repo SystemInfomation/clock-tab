@@ -21,13 +21,11 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    // Use Discord API to fetch user info
-    // Note: This requires a bot token or OAuth token
-    // We'll use the bot token from environment (same as the bot uses)
-    const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
+    // Use Discord API with the user's OAuth access token
+    const accessToken = session.accessToken;
 
-    if (!DISCORD_BOT_TOKEN) {
-      console.warn('⚠️ DISCORD_TOKEN or DISCORD_BOT_TOKEN not set in environment variables');
+    if (!accessToken) {
+      console.warn('⚠️ No OAuth access token in session');
       // Fallback: return basic info with default avatar
       const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
       return NextResponse.json({
@@ -47,9 +45,10 @@ export async function GET(request, { params }) {
       
       let response;
       try {
+        // Use OAuth Bearer token to fetch user info
         response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
           headers: {
-            'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
           signal: controller.signal
@@ -59,6 +58,49 @@ export async function GET(request, { params }) {
       }
 
       if (!response.ok) {
+        // If OAuth token fails (403/401), try bot token as fallback
+        if ((response.status === 403 || response.status === 401) && (process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN)) {
+          console.log('OAuth token failed, trying bot token as fallback...');
+          const botToken = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
+          const botController = new AbortController();
+          const botTimeoutId = setTimeout(() => botController.abort(), 10000);
+          let botResponse;
+          try {
+            botResponse = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+              headers: {
+                'Authorization': `Bot ${botToken}`,
+                'Content-Type': 'application/json'
+              },
+              signal: botController.signal
+            });
+          } finally {
+            clearTimeout(botTimeoutId);
+          }
+          
+          if (botResponse.ok) {
+            const user = await botResponse.json();
+            // Build avatar URL
+            let avatarURL;
+            if (user.avatar) {
+              const extension = user.avatar.startsWith('a_') ? 'gif' : 'webp';
+              avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${extension}?size=256`;
+            } else {
+              const defaultAvatarIndex = (parseInt(user.id) >> 22) % 6;
+              avatarURL = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`;
+            }
+            const displayName = user.global_name || user.username;
+            return NextResponse.json({
+              id: user.id,
+              username: user.username,
+              discriminator: user.discriminator,
+              avatar: user.avatar,
+              avatarURL,
+              displayName,
+              bot: user.bot || false
+            });
+          }
+        }
+        
         if (response.status === 404) {
           // User not found - return default
           const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
