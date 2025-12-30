@@ -10,10 +10,15 @@ let io = null;
  */
 export function initializeWebSocketServer(port = 3001) {
   const server = http.createServer();
+  const allowedOrigins = process.env.WS_ALLOWED_ORIGINS 
+    ? process.env.WS_ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:3000'];
+    
   io = new Server(server, {
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
+      origin: allowedOrigins,
+      methods: ["GET", "POST"],
+      credentials: true
     }
   });
   

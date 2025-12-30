@@ -24,3 +24,42 @@ export function hasPermission(member, permission) {
   return member.permissions.has(permission);
 }
 
+/**
+ * Check if executor can moderate target member based on role hierarchy
+ * @param {GuildMember} executor - The staff member executing the action
+ * @param {GuildMember} target - The member being moderated
+ * @returns {boolean} - True if executor can moderate target
+ */
+export function canModerate(executor, target) {
+  if (!executor || !target) return false;
+  if (!executor.guild || !target.guild) return false;
+  if (executor.guild.id !== target.guild.id) return false;
+  
+  // Cannot moderate self
+  if (executor.id === target.id) return false;
+  
+  // Cannot moderate guild owner
+  if (target.id === executor.guild.ownerId) return false;
+  
+  // Check role hierarchy
+  return executor.roles.highest.position > target.roles.highest.position;
+}
+
+/**
+ * Check if bot can moderate target member based on role hierarchy
+ * @param {GuildMember} botMember - The bot's guild member
+ * @param {GuildMember} target - The member being moderated
+ * @returns {boolean} - True if bot can moderate target
+ */
+export function botCanModerate(botMember, target) {
+  if (!botMember || !target) return false;
+  if (!botMember.guild || !target.guild) return false;
+  if (botMember.guild.id !== target.guild.id) return false;
+  
+  // Cannot moderate guild owner
+  if (target.id === botMember.guild.ownerId) return false;
+  
+  // Check role hierarchy
+  return botMember.roles.highest.position > target.roles.highest.position;
+}
+

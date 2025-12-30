@@ -12,6 +12,9 @@ const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 export async function handleMessage(message) {
   // Ignore bot messages
   if (message.author.bot) return;
+  
+  // Ignore messages not from a guild
+  if (!message.guild) return;
 
   // Handle rank change monitoring in staff channel
   if (message.channel.id === STAFF_CHANNEL_ID) {
@@ -44,7 +47,10 @@ async function handleRankChangeMessage(message) {
 
   try {
     // Get previous rank
-    const user = await User.findOne({ userId: parsed.userId });
+    const user = await User.findOne({ userId: parsed.userId }).catch((error) => {
+      console.error('Error finding user:', error);
+      throw error;
+    });
     const previousRank = user?.currentRank || null;
 
     // Create rank change record
@@ -52,7 +58,13 @@ async function handleRankChangeMessage(message) {
       ...parsed,
       previousRank
     });
-    await rankChange.save();
+    
+    try {
+      await rankChange.save();
+    } catch (error) {
+      console.error('Error saving rank change:', error);
+      throw error;
+    }
 
     // Update user's current rank
     if (!user) {
@@ -60,10 +72,20 @@ async function handleRankChangeMessage(message) {
         userId: parsed.userId,
         currentRank: parsed.newRank
       });
-      await newUser.save();
+      try {
+        await newUser.save();
+      } catch (error) {
+        console.error('Error creating new user:', error);
+        throw error;
+      }
     } else {
       user.currentRank = parsed.newRank;
-      await user.save();
+      try {
+        await user.save();
+      } catch (error) {
+        console.error('Error updating user rank:', error);
+        throw error;
+      }
     }
 
     // Emit WebSocket event

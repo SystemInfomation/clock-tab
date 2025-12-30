@@ -1,4 +1,4 @@
-import { hasModerationPermissions } from '../utils/permissions.js';
+import { hasModerationPermissions, canModerate, botCanModerate } from '../utils/permissions.js';
 import { createInfraction, getUserInfractions, deleteInfraction } from '../services/infractionService.js';
 import { parseDuration, formatDuration } from '../utils/durationParser.js';
 import { emitInfractionCreated } from '../services/websocketServer.js';
@@ -22,11 +22,18 @@ export async function handleMute(message, args) {
     return message.reply('❌ User not found in this server.');
   }
 
-  if (member.id === message.author.id) {
-    return message.reply('❌ You cannot mute yourself.');
+  // Check role hierarchy
+  if (!canModerate(message.member, member)) {
+    return message.reply('❌ You cannot mute this user. They have a higher or equal role.');
   }
 
-  const duration = args[1] || null;
+  // Check bot can moderate
+  const botMember = await message.guild.members.fetch(message.client.user.id).catch(() => null);
+  if (botMember && !botCanModerate(botMember, member)) {
+    return message.reply('❌ Bot cannot mute this user. They have a higher or equal role than the bot.');
+  }
+
+  const duration = args[1] && args[1].match(/^\d+[smhd]$/i) ? args[1] : null;
   const reason = args.slice(duration ? 2 : 1).join(' ') || 'No reason provided';
 
   // Apply mute role or timeout
@@ -82,6 +89,11 @@ export async function handleUnmute(message, args) {
     return message.reply('❌ User not found in this server.');
   }
 
+  // Check role hierarchy
+  if (!canModerate(message.member, member)) {
+    return message.reply('❌ You cannot unmute this user. They have a higher or equal role.');
+  }
+
   try {
     await member.timeout(null);
   } catch (error) {
@@ -116,8 +128,15 @@ export async function handleKick(message, args) {
     return message.reply('❌ User not found in this server.');
   }
 
-  if (member.id === message.author.id) {
-    return message.reply('❌ You cannot kick yourself.');
+  // Check role hierarchy
+  if (!canModerate(message.member, member)) {
+    return message.reply('❌ You cannot kick this user. They have a higher or equal role.');
+  }
+
+  // Check bot can moderate
+  const botMember = await message.guild.members.fetch(message.client.user.id).catch(() => null);
+  if (botMember && !botCanModerate(botMember, member)) {
+    return message.reply('❌ Bot cannot kick this user. They have a higher or equal role than the bot.');
   }
 
   const reason = args.slice(1).join(' ') || 'No reason provided';
@@ -156,8 +175,17 @@ export async function handleBan(message, args) {
 
   const member = await message.guild.members.fetch(user.id).catch(() => null);
   
-  if (member && member.id === message.author.id) {
-    return message.reply('❌ You cannot ban yourself.');
+  // Check role hierarchy if member is still in server
+  if (member) {
+    if (!canModerate(message.member, member)) {
+      return message.reply('❌ You cannot ban this user. They have a higher or equal role.');
+    }
+
+    // Check bot can moderate
+    const botMember = await message.guild.members.fetch(message.client.user.id).catch(() => null);
+    if (botMember && !botCanModerate(botMember, member)) {
+      return message.reply('❌ Bot cannot ban this user. They have a higher or equal role than the bot.');
+    }
   }
 
   const duration = args[1]?.match(/^\d+[smhd]$/i) ? args[1] : null;
@@ -180,23 +208,9 @@ export async function handleBan(message, args) {
 
   emitInfractionCreated(infraction.toObject());
 
-  // Schedule unban if duration is provided
-  if (duration) {
-    const durationMs = parseDuration(duration);
-    if (durationMs) {
-      setTimeout(async () => {
-        try {
-          await message.guild.members.unban(user.id);
-          await Infraction.updateOne(
-            { _id: infraction._id },
-            { active: false }
-          );
-        } catch (error) {
-          console.error('Error unbanning user:', error);
-        }
-      }, durationMs);
-    }
-  }
+  // Note: Temporary bans are tracked via expiresAt field in database
+  // A separate scheduled job or cron task should check for expired bans
+  // setTimeout will not survive bot restarts and is not reliable for production
 
   const durationText = duration ? formatDuration(parseDuration(duration)) : 'permanent';
   return message.reply(`✅ Banned ${user.tag} for ${durationText}. Reason: ${reason}`);
@@ -213,6 +227,14 @@ export async function handleWarn(message, args) {
   const user = message.mentions.users.first();
   if (!user) {
     return message.reply('❌ Please mention a user to warn.');
+  }
+
+  const member = await message.guild.members.fetch(user.id).catch(() => null);
+  if (member) {
+    // Check role hierarchy
+    if (!canModerate(message.member, member)) {
+      return message.reply('❌ You cannot warn this user. They have a higher or equal role.');
+    }
   }
 
   const reason = args.slice(1).join(' ') || 'No reason provided';

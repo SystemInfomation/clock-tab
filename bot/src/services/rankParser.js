@@ -17,7 +17,7 @@ export function parseRankChange(message) {
   let reason = null;
   
   // Check for user mention
-  const mentionMatch = content.match(/User:\s*<@!?(\d+)>/i) || content.match(/User:\s*@/i);
+  const mentionMatch = content.match(/User:\s*<@!?(\d+)>/i);
   if (mentionMatch && mentionMatch[1]) {
     userId = mentionMatch[1];
   } else {

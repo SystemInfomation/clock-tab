@@ -45,7 +45,12 @@ export async function createInfraction(data) {
     active: true
   });
   
-  await infraction.save();
+  try {
+    await infraction.save();
+  } catch (error) {
+    console.error('Error saving infraction:', error);
+    throw error;
+  }
   
   // Update user stats
   let user = await User.findOne({ userId });
@@ -55,7 +60,13 @@ export async function createInfraction(data) {
   
   user.totalPoints += points;
   user.lastActionDate = new Date();
-  await user.save();
+  
+  try {
+    await user.save();
+  } catch (error) {
+    console.error('Error updating user stats:', error);
+    throw error;
+  }
   
   // Check if user should be auto-banned
   let shouldAutoBan = false;
