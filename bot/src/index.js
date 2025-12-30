@@ -1,15 +1,26 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
 import { handleMessage } from './events/messageCreate.js';
 import { initializeWebSocketServer } from './services/websocketServer.js';
 
 dotenv.config();
 
+// Declare variables before they're used
+let botReady = false;
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent
+  ]
+});
+
 // Start health check server for Cloud Run (only when PORT is set)
 let healthServer = null;
 if (process.env.PORT) {
-  const { createServer } = await import('http');
   const PORT = parseInt(process.env.PORT || '8080', 10);
   healthServer = createServer((req, res) => {
     if (req.url === '/health' || req.url === '/') {
@@ -61,15 +72,6 @@ if (process.env.PORT) {
   });
 }
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.MessageContent
-  ]
-});
-
 // Connect to MongoDB with timeout settings
 mongoose.connect(process.env.MONGODB_URI, {
   serverSelectionTimeoutMS: 5000, // 5 second timeout instead of default 30s
@@ -87,9 +89,6 @@ mongoose.connect(process.env.MONGODB_URI, {
 // Initialize WebSocket server
 const wsPort = parseInt(process.env.WS_PORT || '3001');
 initializeWebSocketServer(wsPort);
-
-// Track if bot is ready
-let botReady = false;
 
 // Bot ready event
 client.once('clientReady', () => {
