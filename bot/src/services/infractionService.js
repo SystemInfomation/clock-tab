@@ -52,21 +52,20 @@ export async function createInfraction(data) {
     throw error;
   }
   
-  // Update user stats
-  let user = await User.findOne({ userId });
-  if (!user) {
-    user = new User({ userId, totalPoints: 0 });
-  }
-  
-  user.totalPoints += points;
-  user.lastActionDate = new Date();
-  
-  try {
-    await user.save();
-  } catch (error) {
-    console.error('Error updating user stats:', error);
-    throw error;
-  }
+  // Update user stats using findOneAndUpdate for better performance (atomic operation)
+  const user = await User.findOneAndUpdate(
+    { userId },
+    {
+      $inc: { totalPoints: points },
+      $set: { lastActionDate: new Date() },
+      $setOnInsert: { totalPoints: 0 } // Set default when creating new document
+    },
+    { 
+      upsert: true, 
+      new: true,
+      runValidators: true
+    }
+  );
   
   // Check if user should be auto-banned
   let shouldAutoBan = false;

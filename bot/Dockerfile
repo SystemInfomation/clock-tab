@@ -7,10 +7,11 @@ FROM node:20-slim
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json* ./
 
 # Install dependencies (production only)
-RUN npm ci --only=production && npm cache clean --force
+# Using npm install instead of npm ci for better compatibility
+RUN npm install --omit=dev && npm cache clean --force
 
 # Copy application source
 COPY . .
