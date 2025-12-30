@@ -1,77 +1,51 @@
-import { Server } from 'socket.io';
-import http from 'http';
-
-let io = null;
+// WebSocket server functions for Google Cloud Run
+// Note: WebSockets are not well-supported on Cloud Run, so these are no-ops
+// The functions are kept for API compatibility, but do nothing
+// The dashboard should use polling or REST APIs instead of WebSockets
 
 /**
- * Initialize WebSocket server
- * @param {number} port - Port to listen on
- * @returns {Server} - Socket.io server instance
+ * Initialize WebSocket server (no-op for Cloud Run)
+ * @param {number} port - Port to listen on (ignored)
+ * @returns {null} - Always returns null
  */
 export function initializeWebSocketServer(port = 3001) {
-  const server = http.createServer();
-  const allowedOrigins = process.env.WS_ALLOWED_ORIGINS 
-    ? process.env.WS_ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:3000'];
-    
-  io = new Server(server, {
-    cors: {
-      origin: allowedOrigins,
-      methods: ["GET", "POST"],
-      credentials: true
-    }
-  });
-  
-  server.listen(port, () => {
-    console.log(`WebSocket server listening on port ${port}`);
-  });
-  
-  io.on('connection', (socket) => {
-    console.log('Client connected to WebSocket server');
-    
-    socket.on('disconnect', () => {
-      console.log('Client disconnected from WebSocket server');
-    });
-  });
-  
-  return io;
+  // No-op: WebSockets not supported on Cloud Run
+  // Keeping function for API compatibility
+  return null;
 }
 
 /**
- * Get the Socket.io server instance
- * @returns {Server|null} - Socket.io server or null if not initialized
+ * Get the Socket.io server instance (no-op for Cloud Run)
+ * @returns {null} - Always returns null
  */
 export function getIO() {
-  return io;
+  return null;
 }
 
 /**
- * Emit an infraction created event
- * @param {Object} infraction - Infraction data
+ * Emit an infraction created event (no-op for Cloud Run)
+ * @param {Object} infraction - Infraction data (ignored)
  */
 export function emitInfractionCreated(infraction) {
-  if (io) {
-    io.emit('infraction_created', infraction);
-  }
+  // No-op: WebSockets not supported on Cloud Run
+  // Keeping function for API compatibility
 }
 
 /**
- * Emit a rank change created event
- * @param {Object} rankChange - Rank change data
+ * Emit a rank change created event (no-op for Cloud Run)
+ * @param {Object} rankChange - Rank change data (ignored)
  */
 export function emitRankChangeCreated(rankChange) {
-  if (io) {
-    io.emit('rank_change_created', rankChange);
-  }
+  // No-op: WebSockets not supported on Cloud Run
+  // Keeping function for API compatibility
 }
 
 /**
- * Emit an infraction deleted event
- * @param {string} infractionId - Infraction ID
+ * Emit an infraction deleted event (no-op for Cloud Run)
+ * @param {string} infractionId - Infraction ID (ignored)
  */
 export function emitInfractionDeleted(infractionId) {
-  if (io) {
-    io.emit('infraction_deleted', { id: infractionId });
-  }
+  // No-op: WebSockets not supported on Cloud Run
+  // Keeping function for API compatibility
 }
 
