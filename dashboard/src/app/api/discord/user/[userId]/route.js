@@ -27,6 +27,7 @@ export async function GET(request, { params }) {
     const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
 
     if (!DISCORD_BOT_TOKEN) {
+      console.warn('⚠️ DISCORD_TOKEN or DISCORD_BOT_TOKEN not set in environment variables');
       // Fallback: return basic info with default avatar
       const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
       return NextResponse.json({
@@ -74,6 +75,8 @@ export async function GET(request, { params }) {
       }
 
       const user = await response.json();
+      
+      console.log('✅ Successfully fetched Discord user:', user.id, user.username, user.global_name);
 
       // Build avatar URL - handle animated avatars (start with 'a_') and static avatars
       let avatarURL;
@@ -87,10 +90,10 @@ export async function GET(request, { params }) {
         avatarURL = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`;
       }
 
-      // Modern Discord uses display_name if available, otherwise username
+      // Modern Discord uses global_name (display name) if available, otherwise username
       const displayName = user.global_name || user.username;
 
-      return NextResponse.json({
+      const responseData = {
         id: user.id,
         username: user.username,
         discriminator: user.discriminator,
@@ -98,7 +101,10 @@ export async function GET(request, { params }) {
         avatarURL,
         displayName,
         bot: user.bot || false
-      });
+      };
+      
+      console.log('📤 Returning user data:', responseData);
+      return NextResponse.json(responseData);
     } catch (apiError) {
       console.error('Error fetching from Discord API:', apiError);
       // Fallback on API error (timeout, network error, etc.)

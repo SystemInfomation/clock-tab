@@ -66,9 +66,26 @@ export default function UserPage() {
       if (res.ok) {
         const data = await res.json()
         setDiscordUser(data)
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        console.error('Failed to fetch Discord user:', res.status, errorData)
+        // Set fallback data if API fails
+        setDiscordUser({
+          id: userId,
+          username: 'Unknown User',
+          displayName: 'Unknown User',
+          avatarURL: getDiscordAvatar(userId)
+        })
       }
     } catch (error) {
       console.error('Error fetching Discord user:', error)
+      // Set fallback data on error
+      setDiscordUser({
+        id: userId,
+        username: 'Unknown User',
+        displayName: 'Unknown User',
+        avatarURL: getDiscordAvatar(userId)
+      })
     }
   }
 
@@ -96,7 +113,7 @@ export default function UserPage() {
   const infractions = userData?.infractions || []
   const rankChanges = userData?.rankChanges || []
   const avatarUrl = discordUser?.avatarURL || getDiscordAvatar(userId)
-  const displayName = discordUser?.displayName || userId
+  const displayName = discordUser?.displayName || discordUser?.username || userId
 
   return (
     <div className="min-h-screen bg-background">
