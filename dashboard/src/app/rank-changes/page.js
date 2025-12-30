@@ -4,12 +4,10 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { useWebSocket } from '@/components/WebSocketProvider'
 
 export default function RankChangesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { socket } = useWebSocket()
   const [rankChanges, setRankChanges] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
@@ -28,18 +26,6 @@ export default function RankChangesPage() {
   useEffect(() => {
     fetchRankChanges()
   }, [session, filters])
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('rank_change_created', (rankChange) => {
-        setRankChanges(prev => [rankChange, ...prev])
-      })
-
-      return () => {
-        socket.off('rank_change_created')
-      }
-    }
-  }, [socket])
 
   async function fetchRankChanges() {
     if (!session) return

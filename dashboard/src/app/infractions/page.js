@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { useWebSocket } from '@/components/WebSocketProvider'
 
 const typeColors = {
   warning: 'bg-yellow-100 text-yellow-800',
@@ -16,7 +15,6 @@ const typeColors = {
 export default function InfractionsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { socket } = useWebSocket()
   const [infractions, setInfractions] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
@@ -35,23 +33,6 @@ export default function InfractionsPage() {
   useEffect(() => {
     fetchInfractions()
   }, [session, filters])
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('infraction_created', (infraction) => {
-        setInfractions(prev => [infraction, ...prev])
-      })
-
-      socket.on('infraction_deleted', ({ id }) => {
-        setInfractions(prev => prev.filter(inf => inf._id !== id))
-      })
-
-      return () => {
-        socket.off('infraction_created')
-        socket.off('infraction_deleted')
-      }
-    }
-  }, [socket])
 
   async function fetchInfractions() {
     if (!session) return
