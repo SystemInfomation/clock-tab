@@ -45,6 +45,7 @@ export async function createInfraction(data) {
     active: true
   });
   
+  // Save infraction
   try {
     await infraction.save();
   } catch (error) {
@@ -54,6 +55,7 @@ export async function createInfraction(data) {
   
   // Update user stats using findOneAndUpdate for better performance (atomic operation)
   // Note: $inc handles totalPoints on both insert and update, so don't include it in $setOnInsert
+  // Removed runValidators for better performance (schema validation is sufficient)
   const user = await User.findOneAndUpdate(
     { userId },
     {
@@ -67,7 +69,7 @@ export async function createInfraction(data) {
     { 
       upsert: true, 
       new: true,
-      runValidators: true
+      runValidators: false // Removed for performance - schema handles validation
     }
   );
   

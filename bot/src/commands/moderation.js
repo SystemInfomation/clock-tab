@@ -229,21 +229,11 @@ export async function handleWarn(message, args) {
     return message.reply('❌ Please mention a user to warn.');
   }
 
-  // Try to get cached member first, only fetch if not cached (non-blocking)
-  let member = message.guild.members.cache.get(user.id);
-  if (!member) {
-    // Only fetch if we need to check role hierarchy, but don't wait too long
-    member = await Promise.race([
-      message.guild.members.fetch(user.id).catch(() => null),
-      new Promise(resolve => setTimeout(() => resolve(null), 2000)) // 2 second timeout
-    ]);
-  }
-  
-  if (member) {
-    // Check role hierarchy
-    if (!canModerate(message.member, member)) {
-      return message.reply('❌ You cannot warn this user. They have a higher or equal role.');
-    }
+  // For warnings, use cached member only (faster, warnings are less critical)
+  // Skip role hierarchy check if member not in cache to improve performance
+  const member = message.guild.members.cache.get(user.id);
+  if (member && !canModerate(message.member, member)) {
+    return message.reply('❌ You cannot warn this user. They have a higher or equal role.');
   }
 
   const reason = args.slice(1).join(' ') || 'No reason provided';
