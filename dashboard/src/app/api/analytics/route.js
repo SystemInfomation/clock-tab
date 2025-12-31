@@ -3,12 +3,27 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/mongodb';
 import { Infraction, RankChange } from '@/lib/models';
+import { 
+  sanitizeMongoQuery,
+  rateLimit,
+  getClientIP,
+  createErrorResponse
+} from '@/lib/security';
 
 // Force dynamic rendering since we use getServerSession (which uses headers)
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(request);
+    if (!rateLimit(`analytics:${clientIP}`, 50, 60000)) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -17,7 +32,17 @@ export async function GET(request) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'week'; // week, month, year
+    let period = searchParams.get('period') || 'week'; // week, month, year
+
+    // Validate period
+    const validPeriods = ['week', 'month', 'year'];
+    period = sanitizeMongoQuery(period);
+    if (!validPeriods.includes(period)) {
+      return NextResponse.json(
+        { error: 'Invalid period. Must be: week, month, or year' },
+        { status: 400 }
+      );
+    }
 
     const now = new Date();
     let startDate = new Date();
@@ -32,6 +57,8 @@ export async function GET(request) {
       case 'year':
         startDate.setFullYear(now.getFullYear() - 1);
         break;
+      default:
+        startDate.setDate(now.getDate() - 7);
     }
 
     // Infractions over time
@@ -97,7 +124,11 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const isDev = process.env.NODE_ENV === 'development';
+    return NextResponse.json(
+      createErrorResponse(error, 500, isDev),
+      { status: 500 }
+    );
   }
 }
 

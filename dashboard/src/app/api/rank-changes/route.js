@@ -3,9 +3,27 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/mongodb';
 import { RankChange } from '@/lib/models';
+import { 
+  sanitizeMongoQuery, 
+  validateUserId, 
+  validatePagination, 
+  validateDate,
+  rateLimit,
+  getClientIP,
+  createErrorResponse
+} from '@/lib/security';
 
 export async function GET(request) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(request);
+    if (!rateLimit(`rank-changes:${clientIP}`, 100, 60000)) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,29 +32,93 @@ export async function GET(request) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    const staffId = searchParams.get('staffId');
-    const rank = searchParams.get('rank');
+    
+    // Validate and sanitize inputs
+    let userId = searchParams.get('userId');
+    let staffId = searchParams.get('staffId');
+    let rank = searchParams.get('rank');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = searchParams.get('page');
+    const limit = searchParams.get('limit');
 
     const query = {};
-    if (userId) query.userId = userId;
-    if (staffId) query.staffId = staffId;
-    if (rank) query.newRank = rank;
+    
+    if (userId) {
+      try {
+        userId = validateUserId(userId);
+        query.userId = sanitizeMongoQuery(userId);
+      } catch (error) {
+        return NextResponse.json(
+          { error: 'Invalid user ID' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    if (staffId) {
+      try {
+        staffId = validateUserId(staffId);
+        query.staffId = sanitizeMongoQuery(staffId);
+      } catch (error) {
+        return NextResponse.json(
+          { error: 'Invalid staff ID' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    if (rank) {
+      // Sanitize rank string
+      rank = sanitizeMongoQuery(rank);
+      if (rank.length > 50) {
+        return NextResponse.json(
+          { error: 'Invalid rank' },
+          { status: 400 }
+        );
+      }
+      query.newRank = rank;
+    }
+    
     if (startDate || endDate) {
       query.timestamp = {};
-      if (startDate) query.timestamp.$gte = new Date(startDate);
-      if (endDate) query.timestamp.$lte = new Date(endDate);
+      if (startDate) {
+        try {
+          query.timestamp.$gte = validateDate(startDate);
+        } catch (error) {
+          return NextResponse.json(
+            { error: 'Invalid start date' },
+            { status: 400 }
+          );
+        }
+      }
+      if (endDate) {
+        try {
+          query.timestamp.$lte = validateDate(endDate);
+        } catch (error) {
+          return NextResponse.json(
+            { error: 'Invalid end date' },
+            { status: 400 }
+          );
+        }
+      }
     }
 
-    const skip = (page - 1) * limit;
+    let pageNum, limitNum;
+    try {
+      ({ page: pageNum, limit: limitNum } = validatePagination(page, limit));
+    } catch (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
+
+    const skip = (pageNum - 1) * limitNum;
     const rankChanges = await RankChange.find(query)
       .sort({ timestamp: -1 })
       .skip(skip)
-      .limit(limit)
+      .limit(limitNum)
       .lean();
 
     const total = await RankChange.countDocuments(query);
@@ -44,15 +126,19 @@ export async function GET(request) {
     return NextResponse.json({
       rankChanges,
       pagination: {
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
     console.error('Error fetching rank changes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const isDev = process.env.NODE_ENV === 'development';
+    return NextResponse.json(
+      createErrorResponse(error, 500, isDev),
+      { status: 500 }
+    );
   }
 }
 

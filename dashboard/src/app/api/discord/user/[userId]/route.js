@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
+import { 
+  validateUserId,
+  sanitizeMongoQuery,
+  rateLimit,
+  getClientIP,
+  createErrorResponse
+} from '@/lib/security';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -10,15 +17,31 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request, { params }) {
   try {
+    // Rate limiting (stricter for external API calls)
+    const clientIP = getClientIP(request);
+    if (!rateLimit(`discord-api:${clientIP}`, 30, 60000)) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { userId } = params;
+    let { userId } = params;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    // Validate and sanitize user ID
+    try {
+      userId = validateUserId(userId);
+      userId = sanitizeMongoQuery(userId);
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid user ID' },
+        { status: 400 }
+      );
     }
 
     // Use Discord API with the user's OAuth access token
@@ -162,7 +185,11 @@ export async function GET(request, { params }) {
     }
   } catch (error) {
     console.error('Error in Discord user API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const isDev = process.env.NODE_ENV === 'development';
+    return NextResponse.json(
+      createErrorResponse(error, 500, isDev),
+      { status: 500 }
+    );
   }
 }
 
