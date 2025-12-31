@@ -23,22 +23,28 @@ export default withAuth(
     const csp = [
       "default-src 'self'",
       // SECURITY: Script sources - 'unsafe-eval' needed for Next.js dev, 'unsafe-inline' for Tailwind
+      // Allow Discord scripts for OAuth flow (though they load on discord.com, not our domain)
       // Consider using nonces in production for stricter control
       isProduction 
-        ? "script-src 'self' 'unsafe-inline' https://discord.com"
-        : "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires unsafe-eval in dev
+        ? "script-src 'self' 'unsafe-inline' https://discord.com https://*.discord.com"
+        : "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://discord.com https://*.discord.com", // Next.js requires unsafe-eval in dev
+      // SECURITY: Worker sources - needed for Discord WebSocket workers and Next.js
+      "worker-src 'self' blob: https://discord.com https://*.discord.com",
       // SECURITY: Style sources - 'unsafe-inline' required for Tailwind CSS
       "style-src 'self' 'unsafe-inline'",
       // SECURITY: Image sources - allow Discord CDN for avatars
       "img-src 'self' data: https://cdn.discordapp.com https://*.discordapp.com https://*.discord.com",
       "font-src 'self' data:",
       // SECURITY: Connect sources - allow API calls to Discord and WebSocket connections
-      "connect-src 'self' https://discord.com https://*.discord.com wss://* ws://*",
+      // Note: OAuth flows happen on discord.com, so this mainly applies to our API calls
+      "connect-src 'self' https://discord.com https://*.discord.com https://gateway.discord.gg wss://gateway.discord.gg wss://* ws://*",
       // SECURITY: Prevent framing to prevent clickjacking attacks
+      // Note: We allow Discord frames for OAuth (though OAuth redirects, doesn't embed)
       "frame-ancestors 'none'",
       "base-uri 'self'",
+      // SECURITY: Form actions - allow forms to submit to our domain and OAuth callback
       "form-action 'self'",
-      "frame-src 'self' https://discord.com",
+      "frame-src 'self' https://discord.com https://*.discord.com",
       "object-src 'none'",
       // SECURITY: Upgrade insecure requests to HTTPS
       "upgrade-insecure-requests",
