@@ -10,8 +10,11 @@ export function Card({ children, className = '', hover = true, ...props }) {
       transition={{ duration: 0.3 }}
       whileHover={hover ? { y: -2 } : {}}
       className={`
-        glass-card rounded-2xl p-6
-        ${hover ? 'card-glow hover:card-glow-hover' : 'card-glow'}
+        bg-gradient-to-b from-[#111113] to-[#0f0f11] backdrop-blur-xl
+        rounded-3xl p-0
+        border border-white/5
+        shadow-2xl shadow-black/40
+        ${hover ? 'hover:border-white/10 hover:shadow-2xl hover:shadow-black/60' : ''}
         transition-all duration-300
         ${className}
       `}
@@ -32,7 +35,7 @@ export function CardHeader({ children, className = '' }) {
 
 export function CardTitle({ children, className = '' }) {
   return (
-    <h3 className={`text-lg font-semibold leading-none tracking-tight text-white ${className}`}>
+    <h3 className={`text-lg font-semibold leading-tight tracking-tight text-white ${className}`}>
       {children}
     </h3>
   )
@@ -40,7 +43,7 @@ export function CardTitle({ children, className = '' }) {
 
 export function CardDescription({ children, className = '' }) {
   return (
-    <p className={`text-sm text-muted-foreground ${className}`}>
+    <p className={`text-sm text-gray-400 leading-relaxed ${className}`}>
       {children}
     </p>
   )

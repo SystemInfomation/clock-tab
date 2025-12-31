@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 const buttonVariants = {
   default: 'bg-[#1a1a1d] text-white border border-border/50 hover:bg-[#222225] hover:border-accent/50',
   primary: 'bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20',
+  discord: 'bg-[#5865F2] text-white hover:bg-[#4752C4] shadow-lg shadow-[#5865F2]/30 hover:shadow-[#5865F2]/40 transition-all duration-200',
   secondary: 'bg-transparent text-foreground border border-border hover:bg-hover-bg',
   ghost: 'bg-transparent text-foreground hover:bg-hover-bg',
   destructive: 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20',
@@ -33,8 +34,8 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       className={`
-        inline-flex items-center justify-center rounded-xl font-medium
-        transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background
+        inline-flex items-center justify-center rounded-2xl font-semibold
+        transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#5865F2]/50 focus:ring-offset-2 focus:ring-offset-background
         disabled:opacity-50 disabled:cursor-not-allowed
         ${buttonVariants[variant]}
         ${sizeClasses[size]}
