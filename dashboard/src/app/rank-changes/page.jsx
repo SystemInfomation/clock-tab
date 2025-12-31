@@ -65,23 +65,42 @@ export default function RankChangesPage() {
   }
 
   async function fetchUserInfo() {
+    if (!rankChanges || rankChanges.length === 0) return
+
     const userIds = new Set()
     rankChanges.forEach(change => {
       if (change.userId) userIds.add(change.userId)
       if (change.staffId) userIds.add(change.staffId)
     })
 
-    const userInfoPromises = Array.from(userIds).map(async (userId) => {
+    if (userIds.size === 0) return
+
+    console.log(`🔍 Fetching user info for ${userIds.size} users...`)
+
+    // Batch requests with a small delay to avoid rate limiting
+    const userInfoPromises = Array.from(userIds).map(async (userId, index) => {
+      // Small delay between requests to avoid rate limiting
+      if (index > 0) {
+        await new Promise(resolve => setTimeout(resolve, 50 * index))
+      }
+
       try {
-        const res = await fetch(`/api/discord/user/${userId}`)
-        if (res.ok) {
-          const data = await res.json()
-          // Always store the data, even if it's fallback "Unknown User" data
+        const res = await fetch(`/api/discord/user/${userId}`, {
+          cache: 'no-store', // Always fetch fresh data
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        const data = await res.json()
+        
+        // Always store the data, even if it's fallback "Unknown User" data
+        // The API returns 200 even for fallback data
+        if (data && data.id) {
+          console.log(`✅ Fetched user ${userId}: ${data.displayName || data.username || 'Unknown'}`)
           return { userId, data }
         } else {
-          // Even if response is not ok, try to parse error response
-          const errorData = await res.json().catch(() => null)
-          console.error(`Failed to fetch user ${userId}:`, res.status, errorData)
+          console.warn(`⚠️ Invalid data for user ${userId}`)
           // Return fallback data
           return {
             userId,
@@ -94,7 +113,7 @@ export default function RankChangesPage() {
           }
         }
       } catch (error) {
-        console.error(`Error fetching user ${userId}:`, error)
+        console.error(`❌ Error fetching user ${userId}:`, error)
         // Return fallback data on error
         return {
           userId,
@@ -117,6 +136,7 @@ export default function RankChangesPage() {
       }
     })
 
+    console.log(`✅ Loaded user info for ${Object.keys(userInfoMap).length} users`)
     setUserInfo(userInfoMap)
   }
 
@@ -226,20 +246,24 @@ export default function RankChangesPage() {
                           >
                             <td className="py-4 px-4">
                               <Link href={`/users/${change.userId}`} className="flex items-center gap-3 group">
-                                <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-border/50 group-hover:ring-accent/50 transition-all">
+                                <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-border/50 group-hover:ring-accent/50 transition-all flex-shrink-0">
                                   <Image
                                     src={userData.avatarURL || `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.userId) >> 22) % 6}.png?size=256`}
-                                    alt={userData.displayName}
+                                    alt={userData.displayName || 'User avatar'}
                                     fill
                                     className="object-cover"
                                     unoptimized
+                                    onError={(e) => {
+                                      // Fallback to default avatar on error
+                                      e.target.src = `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.userId) >> 22) % 6}.png?size=256`
+                                    }}
                                   />
                                 </div>
-                                <div>
-                                  <div className="text-sm font-medium text-white group-hover:text-accent transition-colors">
-                                    {userData.displayName}
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-white group-hover:text-accent transition-colors truncate">
+                                    {userData.displayName || userData.username || change.userId}
                                   </div>
-                                  <div className="text-xs text-muted-foreground">{change.userId}</div>
+                                  <div className="text-xs text-muted-foreground font-mono truncate">{change.userId}</div>
                                 </div>
                               </Link>
                             </td>
@@ -257,18 +281,22 @@ export default function RankChangesPage() {
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2">
-                                <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-border/50">
+                                <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-border/50 flex-shrink-0">
                                   <Image
                                     src={staffData.avatarURL || `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.staffId) >> 22) % 6}.png?size=256`}
-                                    alt={staffData.displayName}
+                                    alt={staffData.displayName || 'Staff avatar'}
                                     fill
                                     className="object-cover"
                                     unoptimized
+                                    onError={(e) => {
+                                      // Fallback to default avatar on error
+                                      e.target.src = `https://cdn.discordapp.com/embed/avatars/${(parseInt(change.staffId) >> 22) % 6}.png?size=256`
+                                    }}
                                   />
                                 </div>
-                                <div>
-                                  <div className="text-sm text-white">{staffData.displayName}</div>
-                                  <div className="text-xs text-muted-foreground">{change.staffId}</div>
+                                <div className="min-w-0">
+                                  <div className="text-sm text-white truncate">{staffData.displayName || staffData.username || change.staffId}</div>
+                                  <div className="text-xs text-muted-foreground font-mono truncate">{change.staffId}</div>
                                 </div>
                               </div>
                             </td>

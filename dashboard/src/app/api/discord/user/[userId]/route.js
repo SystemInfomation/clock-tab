@@ -44,22 +44,9 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Use Discord API with the user's OAuth access token
+    // Try bot token first (most reliable for fetching user info)
+    const botToken = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
     const accessToken = session.accessToken;
-
-    if (!accessToken) {
-      console.warn('⚠️ No OAuth access token in session');
-      // Fallback: return basic info with default avatar
-      const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
-      return NextResponse.json({
-        id: userId,
-        username: 'Unknown User',
-        discriminator: '0000',
-        avatar: null,
-        avatarURL: `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`,
-        displayName: 'Unknown User'
-      });
-    }
 
     try {
       // Add timeout to Discord API call (10 seconds)
@@ -67,65 +54,51 @@ export async function GET(request, { params }) {
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       
       let response;
-      try {
-        // Use OAuth Bearer token to fetch user info
-        response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          signal: controller.signal
-        });
-      } finally {
-        clearTimeout(timeoutId);
+      let usedBotToken = false;
+
+      // Prefer bot token if available (more reliable)
+      if (botToken) {
+        try {
+          console.log(`🔍 Fetching user ${userId} with bot token...`);
+          response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+            headers: {
+              'Authorization': `Bot ${botToken}`,
+              'Content-Type': 'application/json'
+            },
+            signal: controller.signal
+          });
+          usedBotToken = true;
+        } catch (error) {
+          console.warn('Bot token fetch failed, trying OAuth token...', error);
+        }
+      }
+
+      // Fallback to OAuth token if bot token not available or failed
+      if (!response && accessToken) {
+        try {
+          console.log(`🔍 Fetching user ${userId} with OAuth token...`);
+          response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            signal: controller.signal
+          });
+        } catch (error) {
+          console.warn('OAuth token fetch failed:', error);
+        }
+      }
+
+      clearTimeout(timeoutId);
+
+      if (!response) {
+        throw new Error('No valid authentication method available');
       }
 
       if (!response.ok) {
-        // If OAuth token fails (403/401), try bot token as fallback
-        if ((response.status === 403 || response.status === 401) && (process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN)) {
-          console.log('OAuth token failed, trying bot token as fallback...');
-          const botToken = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
-          const botController = new AbortController();
-          const botTimeoutId = setTimeout(() => botController.abort(), 10000);
-          let botResponse;
-          try {
-            botResponse = await fetch(`https://discord.com/api/v10/users/${userId}`, {
-              headers: {
-                'Authorization': `Bot ${botToken}`,
-                'Content-Type': 'application/json'
-              },
-              signal: botController.signal
-            });
-          } finally {
-            clearTimeout(botTimeoutId);
-          }
-          
-          if (botResponse.ok) {
-            const user = await botResponse.json();
-            // Build avatar URL
-            let avatarURL;
-            if (user.avatar) {
-              const extension = user.avatar.startsWith('a_') ? 'gif' : 'webp';
-              avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${extension}?size=256`;
-            } else {
-              const defaultAvatarIndex = (parseInt(user.id) >> 22) % 6;
-              avatarURL = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png?size=256`;
-            }
-            const displayName = user.global_name || user.username;
-            return NextResponse.json({
-              id: user.id,
-              username: user.username,
-              discriminator: user.discriminator,
-              avatar: user.avatar,
-              avatarURL,
-              displayName,
-              bot: user.bot || false
-            });
-          }
-        }
-        
+        // If 404, user doesn't exist or bot doesn't have access
         if (response.status === 404) {
-          // User not found - return default
+          console.warn(`⚠️ User ${userId} not found (404)`);
           const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
           return NextResponse.json({
             id: userId,
@@ -136,12 +109,39 @@ export async function GET(request, { params }) {
             displayName: 'Unknown User'
           });
         }
-        throw new Error(`Discord API error: ${response.status}`);
+
+        // If 403/401 and we used bot token, try OAuth as fallback
+        if ((response.status === 403 || response.status === 401) && usedBotToken && accessToken) {
+          console.log('Bot token failed, trying OAuth token as fallback...');
+          const fallbackController = new AbortController();
+          const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 10000);
+          try {
+            const fallbackResponse = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              signal: fallbackController.signal
+            });
+            clearTimeout(fallbackTimeoutId);
+            
+            if (fallbackResponse.ok) {
+              response = fallbackResponse;
+            } else {
+              throw new Error(`Discord API error: ${fallbackResponse.status}`);
+            }
+          } catch (fallbackError) {
+            clearTimeout(fallbackTimeoutId);
+            throw new Error(`Discord API error: ${response.status}`);
+          }
+        } else {
+          throw new Error(`Discord API error: ${response.status}`);
+        }
       }
 
       const user = await response.json();
       
-      console.log('✅ Successfully fetched Discord user:', user.id, user.username, user.global_name);
+      console.log(`✅ Successfully fetched Discord user: ${user.id} (${user.username || 'N/A'}) - ${user.global_name || user.username || 'No name'}`);
 
       // Build avatar URL - handle animated avatars (start with 'a_') and static avatars
       let avatarURL;
@@ -156,22 +156,27 @@ export async function GET(request, { params }) {
       }
 
       // Modern Discord uses global_name (display name) if available, otherwise username
-      const displayName = user.global_name || user.username;
+      const displayName = user.global_name || user.username || 'Unknown User';
 
       const responseData = {
         id: user.id,
-        username: user.username,
-        discriminator: user.discriminator,
-        avatar: user.avatar,
+        username: user.username || 'Unknown User',
+        discriminator: user.discriminator || '0000',
+        avatar: user.avatar || null,
         avatarURL,
         displayName,
         bot: user.bot || false
       };
       
-      console.log('📤 Returning user data:', responseData);
+      console.log(`📤 Returning user data for ${userId}:`, { 
+        id: responseData.id, 
+        displayName: responseData.displayName,
+        hasAvatar: !!user.avatar 
+      });
       return NextResponse.json(responseData);
     } catch (apiError) {
-      console.error('Error fetching from Discord API:', apiError);
+      console.error(`❌ Error fetching user ${userId} from Discord API:`, apiError.message);
+      
       // Fallback on API error (timeout, network error, etc.)
       const defaultAvatarIndex = (parseInt(userId) >> 22) % 6;
       return NextResponse.json({
