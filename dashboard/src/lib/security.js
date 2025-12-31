@@ -156,17 +156,22 @@ export function validateInfractionType(type) {
 
 /**
  * Rate limiting store (in-memory, consider Redis for production)
+ * SECURITY: In-memory rate limiting works for single-instance deployments
+ * For multi-instance or high-traffic deployments, use Redis or similar distributed store
  */
 const rateLimitStore = new Map();
 
 /**
- * Simple rate limiter
+ * Simple rate limiter with enhanced security features
+ * SECURITY: Prevents brute force attacks, API abuse, and DDoS
+ * 
  * @param {string} identifier - Unique identifier (IP, user ID, etc.)
  * @param {number} maxRequests - Maximum requests allowed
  * @param {number} windowMs - Time window in milliseconds
+ * @param {Request} request - Optional request object for audit logging
  * @returns {boolean} - True if allowed, false if rate limited
  */
-export function rateLimit(identifier, maxRequests = 100, windowMs = 60000) {
+export function rateLimit(identifier, maxRequests = 100, windowMs = 60000, request = null) {
   const now = Date.now();
   const key = identifier;
   
@@ -176,6 +181,7 @@ export function rateLimit(identifier, maxRequests = 100, windowMs = 60000) {
     rateLimitStore.set(key, {
       count: 1,
       resetTime: now + windowMs,
+      firstRequest: now,
     });
     return true;
   }
@@ -185,11 +191,30 @@ export function rateLimit(identifier, maxRequests = 100, windowMs = 60000) {
     rateLimitStore.set(key, {
       count: 1,
       resetTime: now + windowMs,
+      firstRequest: now,
     });
     return true;
   }
 
   if (record.count >= maxRequests) {
+    // SECURITY: Log rate limit exceeded for suspicious activity detection
+    if (request) {
+      // Use dynamic import to avoid circular dependencies
+      import('./auditLog').then(({ logAuthEvent, detectSuspiciousActivity }) => {
+        logAuthEvent('rate_limit_exceeded', {
+          identifier,
+          requestCount: record.count,
+          windowMs,
+          ipAddress: getClientIP(request),
+        }, request);
+        
+        // Check for suspicious activity patterns
+        detectSuspiciousActivity(identifier, 'rate_limit_exceeded', 3, 60 * 60 * 1000);
+      }).catch(() => {
+        // Fail silently if audit logging is not available
+      });
+    }
+    
     return false;
   }
 
@@ -199,17 +224,31 @@ export function rateLimit(identifier, maxRequests = 100, windowMs = 60000) {
 
 /**
  * Clean up expired rate limit records
+ * SECURITY: Prevents memory leaks from accumulated rate limit entries
  */
 export function cleanupRateLimit() {
   const now = Date.now();
+  let cleaned = 0;
   for (const [key, record] of rateLimitStore.entries()) {
     if (now > record.resetTime) {
       rateLimitStore.delete(key);
+      cleaned++;
+    }
+  }
+  
+  // SECURITY: Limit store size to prevent memory exhaustion attacks
+  if (rateLimitStore.size > 10000) {
+    // Remove oldest 20% of entries if store is too large
+    const entries = Array.from(rateLimitStore.entries())
+      .sort((a, b) => (a[1].firstRequest || 0) - (b[1].firstRequest || 0));
+    const toRemove = Math.floor(entries.length * 0.2);
+    for (let i = 0; i < toRemove; i++) {
+      rateLimitStore.delete(entries[i][0]);
     }
   }
 }
 
-// Clean up every 5 minutes
+// SECURITY: Clean up expired rate limit records every 5 minutes
 if (typeof setInterval !== 'undefined') {
   setInterval(cleanupRateLimit, 5 * 60 * 1000);
 }
@@ -252,5 +291,6 @@ export function createErrorResponse(error, statusCode = 500, isDevelopment = fal
     ...(isDevelopment && error instanceof Error && { stack: error.stack }),
   };
 }
+
 
 

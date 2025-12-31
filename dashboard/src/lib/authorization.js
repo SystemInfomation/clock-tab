@@ -1,13 +1,17 @@
 /**
  * Authorization utilities for role-based access control
+ * 
+ * SECURITY: All functions use secure token retrieval - tokens never exposed to client
  */
 
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import { verifyStaffRole } from '@/lib/auth';
+import { getAccessToken } from '@/lib/getAccessToken';
 
 /**
  * Check if user is authenticated
+ * SECURITY: Returns session object without sensitive tokens
  * @returns {Promise<Object|null>} - Session object or null
  */
 export async function requireAuth() {
@@ -20,12 +24,13 @@ export async function requireAuth() {
 
 /**
  * Check if user has staff role
+ * SECURITY: Uses secure token accessor to get access token server-side only
  * @param {string} userId - Discord user ID
- * @param {string} accessToken - OAuth access token
+ * @param {Request} request - Next.js request object (for secure token access)
  * @param {string} guildId - Discord guild ID (from env)
  * @returns {Promise<boolean>} - True if user has staff role
  */
-export async function requireStaffRole(userId, accessToken, guildId) {
+export async function requireStaffRole(userId, request, guildId) {
   if (!guildId) {
     guildId = process.env.DISCORD_GUILD_ID;
   }
@@ -36,6 +41,14 @@ export async function requireStaffRole(userId, accessToken, guildId) {
   }
 
   try {
+    // SECURITY: Get access token securely from JWT (server-side only)
+    const accessToken = await getAccessToken(request);
+    
+    if (!accessToken) {
+      console.warn('[AUTH] No access token available for staff role check');
+      return false;
+    }
+
     return await verifyStaffRole(userId, accessToken, guildId);
   } catch (error) {
     console.error('Error checking staff role:', error);
@@ -45,8 +58,9 @@ export async function requireStaffRole(userId, accessToken, guildId) {
 
 /**
  * Middleware wrapper for authenticated routes
+ * SECURITY: Validates authentication and optionally staff role using secure token access
  * @param {Function} handler - Route handler
- * @param {Object} options - Options { requireStaff: boolean }
+ * @param {Object} options - Options { requireStaff: boolean, guildId?: string }
  * @returns {Function} - Wrapped handler
  */
 export function withAuth(handler, options = {}) {
@@ -55,6 +69,13 @@ export function withAuth(handler, options = {}) {
       const session = await requireAuth();
       
       if (!session) {
+        // SECURITY: Audit log unauthorized access attempt
+        const { logAuthEvent } = await import('@/lib/auditLog');
+        logAuthEvent('unauthorized_access', {
+          ipAddress: request.headers?.get('x-forwarded-for')?.split(',')[0] || 'unknown',
+          userAgent: request.headers?.get('user-agent') || null,
+        }, request);
+
         return new Response(
           JSON.stringify({ error: 'Unauthorized' }),
           { 
@@ -68,11 +89,18 @@ export function withAuth(handler, options = {}) {
       if (options.requireStaff) {
         const isStaff = await requireStaffRole(
           session.user.id,
-          session.accessToken,
+          request,
           options.guildId
         );
         
         if (!isStaff) {
+          // SECURITY: Audit log forbidden access attempt
+          const { logAuthEvent } = await import('@/lib/auditLog');
+          logAuthEvent('unauthorized_access', {
+            userId: session.user.id,
+            metadata: { reason: 'staff_role_required' },
+          }, request);
+
           return new Response(
             JSON.stringify({ error: 'Forbidden - Staff role required' }),
             { 
@@ -83,12 +111,13 @@ export function withAuth(handler, options = {}) {
         }
       }
 
-      // Add session to request context
+      // Add session to request context (without access token - never expose to client)
       request.session = session;
       
       return handler(request, context, session);
     } catch (error) {
       console.error('Auth middleware error:', error);
+      // SECURITY: Don't expose error details
       return new Response(
         JSON.stringify({ error: 'Internal server error' }),
         { 
@@ -99,5 +128,3 @@ export function withAuth(handler, options = {}) {
     }
   };
 }
-
-

@@ -7,14 +7,17 @@
 
 /**
  * Refresh a Discord OAuth access token using the refresh token
- * @param {string} refreshToken - The refresh token
+ * SECURITY: Validates token responses and logs refresh events for audit
+ * 
+ * @param {string} refreshToken - The refresh token (must be stored securely)
  * @param {string} clientId - Discord client ID
  * @param {string} clientSecret - Discord client secret
  * @returns {Promise<Object>} - New token data with access_token, refresh_token, expires_in, etc.
  * @throws {Error} - If refresh fails
  */
 export async function refreshDiscordToken(refreshToken, clientId, clientSecret) {
-  if (!refreshToken) {
+  // SECURITY: Validate inputs
+  if (!refreshToken || typeof refreshToken !== 'string') {
     throw new Error('Refresh token is required');
   }
 
@@ -22,9 +25,15 @@ export async function refreshDiscordToken(refreshToken, clientId, clientSecret) 
     throw new Error('Discord client credentials are required');
   }
 
+  // SECURITY: Validate refresh token format (Discord tokens are typically base64-like strings)
+  if (refreshToken.length < 20 || refreshToken.length > 200) {
+    throw new Error('Invalid refresh token format');
+  }
+
+  // SECURITY: Discord OAuth2 token endpoint (official endpoint)
   const tokenEndpoint = 'https://discord.com/api/oauth2/token';
   
-  // Create form data for token refresh
+  // SECURITY: Create form data for token refresh (use URLSearchParams to prevent injection)
   const params = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
@@ -33,18 +42,33 @@ export async function refreshDiscordToken(refreshToken, clientId, clientSecret) 
   });
 
   try {
+    // SECURITY: Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const response = await fetch(tokenEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      const errorText = await response.text();
-      // Log error without exposing sensitive data
-      console.error(`[OAUTH] Token refresh failed: ${response.status} ${response.statusText}`);
+      // SECURITY: Log error without exposing sensitive data
+      try {
+        const { logAuthEvent } = await import('./auditLog');
+        logAuthEvent('token_refresh_failed', {
+          statusCode: response.status,
+          statusText: response.statusText,
+        });
+      } catch (importError) {
+        // Fail silently if audit logging is not available
+        console.warn('[OAUTH] Could not log token refresh failure:', importError.message);
+      }
       
       // Handle specific error cases
       if (response.status === 401) {
@@ -56,26 +80,64 @@ export async function refreshDiscordToken(refreshToken, clientId, clientSecret) 
 
     const tokenData = await response.json();
     
-    // Validate response structure
-    if (!tokenData.access_token) {
-      throw new Error('Invalid token response: missing access_token');
+    // SECURITY: Validate response structure
+    if (!tokenData || typeof tokenData !== 'object') {
+      throw new Error('Invalid token response format');
     }
 
-    // Calculate expiration time (Discord returns expires_in in seconds)
-    const expiresAt = tokenData.expires_in
-      ? Date.now() + (tokenData.expires_in * 1000)
-      : Date.now() + (7 * 24 * 60 * 60 * 1000); // Default 7 days if not provided
+    if (!tokenData.access_token || typeof tokenData.access_token !== 'string') {
+      throw new Error('Invalid token response: missing or invalid access_token');
+    }
+
+    // SECURITY: Validate token format
+    if (tokenData.access_token.length < 20 || tokenData.access_token.length > 500) {
+      throw new Error('Invalid access token format');
+    }
+
+    // SECURITY: Calculate expiration time (Discord returns expires_in in seconds)
+    const expiresIn = tokenData.expires_in ? parseInt(tokenData.expires_in, 10) : 604800; // Default 7 days
+    if (!Number.isFinite(expiresIn) || expiresIn <= 0) {
+      throw new Error('Invalid token expiration');
+    }
+
+    const expiresAt = Date.now() + (expiresIn * 1000);
+
+    // SECURITY: Log successful token refresh for audit
+    try {
+      const { logAuthEvent } = await import('./auditLog');
+      logAuthEvent('token_refresh', {
+        expiresAt: new Date(expiresAt).toISOString(),
+        expiresIn,
+      });
+    } catch (importError) {
+      // Fail silently if audit logging is not available
+      console.warn('[OAUTH] Could not log token refresh:', importError.message);
+    }
 
     return {
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token || refreshToken, // Use new refresh token if provided
       expires_at: expiresAt,
-      expires_in: tokenData.expires_in,
-      scope: tokenData.scope,
+      expires_in: expiresIn,
+      scope: tokenData.scope || 'identify email guilds',
       token_type: tokenData.token_type || 'Bearer',
     };
   } catch (error) {
+    // SECURITY: Log refresh failures
+    try {
+      const { logAuthEvent } = await import('./auditLog');
+      logAuthEvent('token_refresh_failed', {
+        error: error.message,
+      });
+    } catch (importError) {
+      // Fail silently if audit logging is not available
+      console.warn('[OAUTH] Could not log token refresh failure:', importError.message);
+    }
+
     // Re-throw with context
+    if (error.name === 'AbortError') {
+      throw new Error('Token refresh request timed out');
+    }
     if (error.message.startsWith('Token refresh failed') || error.message.startsWith('Invalid refresh token')) {
       throw error;
     }
@@ -85,11 +147,13 @@ export async function refreshDiscordToken(refreshToken, clientId, clientSecret) 
 
 /**
  * Validate OAuth callback parameters
+ * SECURITY: Validates OAuth callback to prevent callback attacks and parameter injection
+ * 
  * @param {Object} params - Query parameters from OAuth callback
  * @returns {Object} - { valid: boolean, error?: string, params?: Object }
  */
 export function validateOAuthCallback(params) {
-  // Check for error parameter (Discord OAuth error)
+  // SECURITY: Check for error parameter (Discord OAuth error)
   if (params.error) {
     const errorDescriptions = {
       access_denied: 'User denied the authorization request',
@@ -101,8 +165,16 @@ export function validateOAuthCallback(params) {
 
     const errorMessage = errorDescriptions[params.error] || 'An unknown error occurred during authorization';
     
-    // Log error safely (without exposing user-specific data)
-    console.warn(`[OAUTH] OAuth callback error: ${params.error}`);
+    // SECURITY: Log error safely (non-blocking, fire-and-forget)
+    // Use dynamic import to avoid circular dependencies, but don't await
+    import('./auditLog').then(({ logAuthEvent }) => {
+      logAuthEvent('oauth_error', {
+        errorCode: params.error,
+        errorDescription: errorMessage,
+      });
+    }).catch(() => {
+      // Fail silently if audit logging is not available
+    });
     
     return {
       valid: false,
@@ -111,7 +183,7 @@ export function validateOAuthCallback(params) {
     };
   }
 
-  // Validate required parameters for authorization code flow
+  // SECURITY: Validate required parameters for authorization code flow
   if (!params.code) {
     return {
       valid: false,
@@ -119,22 +191,54 @@ export function validateOAuthCallback(params) {
     };
   }
 
-  // Validate code format (Discord codes are alphanumeric, roughly 30-60 characters)
-  if (typeof params.code !== 'string' || params.code.length < 20 || params.code.length > 100) {
+  // SECURITY: Validate code format (Discord codes are alphanumeric, roughly 30-60 characters)
+  // Prevents injection attacks via malformed codes
+  if (typeof params.code !== 'string') {
+    return {
+      valid: false,
+      error: 'Invalid authorization code type',
+    };
+  }
+
+  // SECURITY: Validate code length and format
+  if (params.code.length < 20 || params.code.length > 100) {
     return {
       valid: false,
       error: 'Invalid authorization code format',
     };
   }
 
-  // State parameter should be validated by NextAuth, but we'll check it exists
-  // (NextAuth handles state validation internally with PKCE)
+  // SECURITY: Validate code contains only safe characters (alphanumeric, hyphens, underscores)
+  // Discord authorization codes are typically base64url encoded
+  if (!/^[A-Za-z0-9_-]+$/.test(params.code)) {
+    return {
+      valid: false,
+      error: 'Invalid authorization code characters',
+    };
+  }
+
+  // SECURITY: State parameter validation
+  // NextAuth handles state validation internally with PKCE, but we verify it exists
+  if (!params.state || typeof params.state !== 'string') {
+    return {
+      valid: false,
+      error: 'Missing or invalid state parameter',
+    };
+  }
+
+  // SECURITY: Validate state parameter format (should be base64url encoded)
+  if (params.state.length < 10 || params.state.length > 200) {
+    return {
+      valid: false,
+      error: 'Invalid state parameter format',
+    };
+  }
 
   return {
     valid: true,
     params: {
       code: params.code,
-      state: params.state, // Pass through for NextAuth validation
+      state: params.state, // Pass through for NextAuth validation (PKCE handled internally)
     },
   };
 }
@@ -221,6 +325,7 @@ export function getTimeUntilExpiration(expiresAt) {
   }
   return expiresAt - Date.now();
 }
+
 
 
 

@@ -44,9 +44,13 @@ export async function GET(request, { params }) {
       );
     }
 
+    // SECURITY: Get access token securely from JWT (server-side only)
+    // Never use session.accessToken as it exposes tokens to client
+    const { getAccessToken } = await import('@/lib/getAccessToken');
+    const accessToken = await getAccessToken(request);
+    
     // Try bot token first (most reliable for fetching user info)
     const botToken = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
-    const accessToken = session.accessToken;
 
     try {
       // Add timeout to Discord API call (10 seconds)

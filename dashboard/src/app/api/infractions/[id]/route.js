@@ -27,10 +27,10 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Require staff role for deletion
+    // SECURITY: Require staff role for deletion - uses secure token access
     const isStaff = await requireStaffRole(
       session.user.id,
-      session.accessToken,
+      request,
       process.env.DISCORD_GUILD_ID
     );
     
