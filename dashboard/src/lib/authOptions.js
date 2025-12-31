@@ -84,9 +84,9 @@ export const authOptions = {
         : 'next-auth.session-token',
       options: {
         httpOnly: true, // SECURITY: Prevent XSS access to cookie
-        sameSite: 'strict', // SECURITY: Strict SameSite prevents CSRF attacks
+        sameSite: 'lax', // SECURITY: Lax allows OAuth redirects while still providing CSRF protection
         path: '/',
-        secure: true, // SECURITY: Always use secure cookies (even in dev if using HTTPS)
+        secure: process.env.NODE_ENV === 'production', // SECURITY: Secure cookies in production (requires HTTPS)
         maxAge: 30 * 24 * 60 * 60, // 30 days
         // SECURITY: Use domain restriction if needed
         // domain: process.env.COOKIE_DOMAIN, // Uncomment if serving from subdomain
@@ -98,9 +98,9 @@ export const authOptions = {
         : 'next-auth.callback-url',
       options: {
         httpOnly: true,
-        sameSite: 'strict', // SECURITY: Strict SameSite prevents CSRF
+        sameSite: 'lax', // SECURITY: Lax required for OAuth redirects from Discord
         path: '/',
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         // SECURITY: Limit maxAge for callback URLs
         maxAge: 60 * 60, // 1 hour (temporary)
       },
@@ -111,10 +111,10 @@ export const authOptions = {
         : 'next-auth.csrf-token',
       options: {
         httpOnly: true,
-        sameSite: 'strict', // SECURITY: Strict SameSite for CSRF token
+        sameSite: 'lax', // SECURITY: Lax required for OAuth redirects (CSRF still protected via PKCE)
         path: '/',
-        secure: true,
-        // SECURITY: __Host- prefix requires secure, no domain, path=/
+        secure: process.env.NODE_ENV === 'production',
+        // SECURITY: __Host- prefix requires secure in production, no domain, path=/
         maxAge: 60 * 60, // 1 hour
       },
     },
