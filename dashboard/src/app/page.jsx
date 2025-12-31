@@ -226,7 +226,7 @@ export default function Home() {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pb-4">
                   <div className="space-y-3">
                     {stats?.recentInfractions?.length > 0 ? (
                       stats.recentInfractions.map((infraction, index) => {
@@ -246,7 +246,7 @@ export default function Home() {
                             whileHover={{ x: 4 }}
                             className="group"
                           >
-                            <div className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-hover-bg/30 to-hover-bg/10 border border-border/30 hover:border-border/60 hover:bg-hover-bg/40 transition-all duration-300 cursor-pointer">
+                            <div className="flex items-start gap-4 p-4 rounded-2xl bg-gradient-to-r from-white/[0.03] to-white/[0.01] border border-white/5 hover:border-white/10 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer backdrop-blur-sm">
                               <motion.div
                                 whileHover={{ scale: 1.1 }}
                                 className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-border/50 group-hover:ring-accent/30 flex-shrink-0 transition-all"
@@ -306,9 +306,9 @@ export default function Home() {
                     )}
                   </div>
                 </CardContent>
-                <CardFooter className="border-t border-border/30 bg-hover-bg/20">
+                <CardFooter>
                   <Link href="/infractions" className="w-full">
-                    <Button variant="ghost" className="w-full justify-between group/btn hover:bg-hover-bg/50">
+                    <Button variant="ghost" className="w-full justify-between group/btn hover:bg-white/[0.05]">
                       <span>View all infractions</span>
                       <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                     </Button>
@@ -335,7 +335,7 @@ export default function Home() {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pb-4">
                   <div className="space-y-3">
                     {stats?.recentRankChanges?.length > 0 ? (
                       stats.recentRankChanges.map((change, index) => {
@@ -354,7 +354,7 @@ export default function Home() {
                             whileHover={{ x: 4 }}
                             className="group"
                           >
-                            <div className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-hover-bg/30 to-hover-bg/10 border border-border/30 hover:border-border/60 hover:bg-hover-bg/40 transition-all duration-300 cursor-pointer">
+                            <div className="flex items-start gap-4 p-4 rounded-2xl bg-gradient-to-r from-white/[0.03] to-white/[0.01] border border-white/5 hover:border-white/10 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer backdrop-blur-sm">
                               <motion.div
                                 whileHover={{ scale: 1.1 }}
                                 className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-border/50 group-hover:ring-green-400/30 flex-shrink-0 transition-all"
@@ -414,9 +414,9 @@ export default function Home() {
                     )}
                   </div>
                 </CardContent>
-                <CardFooter className="border-t border-border/30 bg-hover-bg/20">
+                <CardFooter>
                   <Link href="/rank-changes" className="w-full">
-                    <Button variant="ghost" className="w-full justify-between group/btn hover:bg-hover-bg/50">
+                    <Button variant="ghost" className="w-full justify-between group/btn hover:bg-white/[0.05]">
                       <span>View all rank changes</span>
                       <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                     </Button>

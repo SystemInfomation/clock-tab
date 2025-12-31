@@ -11,7 +11,7 @@ export function Card({ children, className = '', hover = true, ...props }) {
       whileHover={hover ? { y: -2 } : {}}
       className={`
         bg-gradient-to-b from-[#111113] to-[#0f0f11] backdrop-blur-xl
-        rounded-3xl p-0
+        rounded-3xl overflow-hidden
         border border-white/5
         shadow-2xl shadow-black/40
         ${hover ? 'hover:border-white/10 hover:shadow-2xl hover:shadow-black/60' : ''}
@@ -27,7 +27,7 @@ export function Card({ children, className = '', hover = true, ...props }) {
 
 export function CardHeader({ children, className = '' }) {
   return (
-    <div className={`flex flex-col space-y-1.5 mb-4 ${className}`}>
+    <div className={`px-6 pt-6 pb-4 ${className}`}>
       {children}
     </div>
   )
@@ -43,7 +43,7 @@ export function CardTitle({ children, className = '' }) {
 
 export function CardDescription({ children, className = '' }) {
   return (
-    <p className={`text-sm text-gray-400 leading-relaxed ${className}`}>
+    <p className={`text-sm text-gray-400 leading-relaxed mt-1 ${className}`}>
       {children}
     </p>
   )
@@ -51,7 +51,7 @@ export function CardDescription({ children, className = '' }) {
 
 export function CardContent({ children, className = '' }) {
   return (
-    <div className={className}>
+    <div className={`px-6 ${className}`}>
       {children}
     </div>
   )
@@ -59,7 +59,7 @@ export function CardContent({ children, className = '' }) {
 
 export function CardFooter({ children, className = '' }) {
   return (
-    <div className={`flex items-center pt-4 border-t border-border/50 ${className}`}>
+    <div className={`px-6 py-4 border-t border-white/5 bg-gradient-to-b from-transparent to-white/[0.02] ${className}`}>
       {children}
     </div>
   )
