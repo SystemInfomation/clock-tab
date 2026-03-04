@@ -1,7 +1,6 @@
 /**
  * ClockTab — script.js
  * Real-time digital clock for America/New_York timezone.
- * Uses requestAnimationFrame + Intl.DateTimeFormat for
  * millisecond-accurate, drift-free updates.
  */
 
