@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Premium real-time digital clock — America/New York timezone" />
+  <title>ClockTab</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Main clock display -->
+    <main id="clock-wrap">
+      <!-- HH:MM large display -->
+      <div id="clock-main">
+        <span id="clock-hhmm"></span>
+        <div id="clock-right">
+          <span id="clock-ss"></span>
+          <span id="clock-ampm"></span>
+        </div>
+      </div>
+
+      <!-- Separator line -->
+      <div id="clock-separator"></div>
+
+      <!-- Date line -->
+      <div id="clock-date"></div>
+    </main>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
